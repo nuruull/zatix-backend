@@ -43,4 +43,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function eventOrganizers() {
+        return $this->hasMany(EventOrganizer::class, 'eo_owner_id', 'user_id');
+    }
 }
