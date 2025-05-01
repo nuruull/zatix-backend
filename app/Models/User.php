@@ -8,6 +8,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\DemoRequest;
+
 
 class User extends Authenticatable
 {
@@ -44,7 +46,13 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    public function eventOrganizers() {
+    public function eventOrganizers()
+    {
         return $this->hasMany(EventOrganizer::class, 'eo_owner_id', 'user_id');
+    }
+
+    public function demoRequest()
+    {
+        return $this->hasOne(DemoRequest::class);
     }
 }
