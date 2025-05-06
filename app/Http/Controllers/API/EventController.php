@@ -18,7 +18,6 @@ class EventController extends Controller
 {
     public function index()
     {
-        dd(auth()->user());
         $events = Event::with(['facilities', 'tickets'])->get();
         return response()->json($events);
     }
@@ -48,7 +47,7 @@ class EventController extends Controller
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
-                'start_date' => 'required|date|before_or_equal:start_date',
+                'start_date' => 'required|date',
                 'start_time' => 'required|date_format:H:i',
                 'end_date' => 'required|date|after_or_equal:start_date',
                 'end_time' => 'required|date_format:H:i',
@@ -60,8 +59,8 @@ class EventController extends Controller
                 'tickets.*.price' => 'required|numeric|min:0',
                 'tickets.*.stock' => 'required|integer|min:0',
                 'tickets.*.limit' => 'required|integer|min:1',
-                'tickets.*.start_date' => 'required|date|after_or_equal:start_date',
-                'tickets.*.end_date' => 'required|date|before_or_equal:end_date',
+                'tickets.*.start_date' => 'required|date',
+                'tickets.*.end_date' => 'required|date',
                 'tickets.*.ticket_type_id' => 'required|exists:ticket_types,id',
             ]);
 
@@ -69,9 +68,10 @@ class EventController extends Controller
                 $event = Event::create([
                     'eo_id' => auth()->id(),
                     'name' => $validated['name'],
-                    'description' => $validated['description'],
-                    'start_datetime' => Carbon::parse($validated['start_date'] . ' ' . $validated['start_time']),
-                    'end_datetime' => Carbon::parse($validated['end_date'] . ' ' . $validated['end_time']),
+                    'description' => $validated['description'],'start_date' => $validated['start_date'],
+                    'start_time' => $validated['start_time'],
+                    'end_date' => $validated['end_date'],
+                    'end_time' => $validated['end_time'],
                     'location' => $validated['location'],
                     'status' => 'draft', // Default
                     'approval_status' => 'pending', // Default
@@ -87,7 +87,6 @@ class EventController extends Controller
                         $event->tickets()->create($ticketData);
                     }
                 }
-
                 return response()->json($event, 201);
             });
         } catch (ValidationException $e) {
@@ -131,8 +130,8 @@ class EventController extends Controller
                 'tickets.*.price' => 'required_with:tickets|numeric|min:0',
                 'tickets.*.stock' => 'required_with:tickets|integer|min:0',
                 'tickets.*.limit' => 'required_with:tickets|integer|min:1',
-                'tickets.*.start_date' => 'required_with:tickets|date|after_or_equal:start_date',
-                'tickets.*.end_date' => 'required_with:tickets|date|before_or_equal:end_date',
+                'tickets.*.start_date' => 'required_with:tickets|date|before_or_equal:start_date',
+                'tickets.*.end_date' => 'required_with:tickets|date|before_or_equal:start_date',
                 'tickets.*.ticket_type_id' => 'required_with:tickets|exists:ticket_types,id',
             ]);
 

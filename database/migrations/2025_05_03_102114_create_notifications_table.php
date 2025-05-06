@@ -11,8 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('password_reset_tokens', function (Blueprint $table) {
-            $table->timestamp('expires_at')->after('created_at');
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('type');
+            $table->morphs('notifiable');
+            $table->text('data');
+            $table->timestamp('read_at')->nullable();
+            $table->timestamps();
         });
     }
 
@@ -21,8 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('password_reset_tokens', function (Blueprint $table) {
-            //
-        });
+        Schema::dropIfExists('notifications');
     }
 };

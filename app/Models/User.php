@@ -8,12 +8,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use App\Models\DemoRequest;
-
+use App\Notifications\CustomResetPasswordNotification;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -46,6 +45,11 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new CustomResetPasswordNotification($token));
+    }
+
     public function eventOrganizers()
     {
         return $this->hasMany(EventOrganizer::class, 'eo_owner_id', 'user_id');
@@ -54,5 +58,10 @@ class User extends Authenticatable
     public function demoRequest()
     {
         return $this->hasOne(DemoRequest::class);
+    }
+
+    public function otpCode()
+    {
+        return $this->hasOne(OtpCode::class);
     }
 }

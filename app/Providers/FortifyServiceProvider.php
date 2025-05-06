@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Fortify;
-use Laravel\Fortify\Contracts\PasswordResetResponse;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -42,14 +41,6 @@ class FortifyServiceProvider extends ServiceProvider
 
         RateLimiter::for('two-factor', function (Request $request) {
             return Limit::perMinute(5)->by($request->session()->get('login.id'));
-        });
-
-        Fortify::sendPasswordResetLinkResponse(function ($request) {
-            return response()->json(['message' => 'Reset password link has been sent to your email.']);
-        });
-
-        Fortify::resetPasswordResponse(function ($request) {
-            return response()->json(['message' => 'Password has been reset successfully.']);
         });
     }
 }

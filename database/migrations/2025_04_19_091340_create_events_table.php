@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('eo_id');
             $table->string('name');
+            $table->text('slug')->unique();
+            $table->string('poster')->nullable();
             $table->text('description')->nullable();
             $table->date('start_date');
             $table->time('start_time');
