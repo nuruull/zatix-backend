@@ -7,6 +7,7 @@ use App\Http\Controllers\API\FacilityController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\PasswordResetLinkController;
 use App\Http\Controllers\API\NewPasswordController;
+use App\Http\Controllers\TermAndConController;
 use Illuminate\Support\Facades\Mail;
 
 /*
@@ -29,7 +30,7 @@ use Illuminate\Support\Facades\Mail;
 // });
 
 
-Route::get('test', function (){
+Route::get('test', function () {
     dd('hi');
 });
 
@@ -48,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::prefix('events')->name('event.')->group(function () {
     Route::get('/', [EventController::class, 'index'])->name('index');
     Route::get('/{id}', [EventController::class, 'show'])->name('show');
+    Route::post('/store', [EventController::class, 'store'])->name('store');
 });
 
 Route::prefix('demo-requests')
@@ -67,21 +69,32 @@ Route::prefix('demo-requests')
             Route::post('/{id}/upgrade', [DemoRequestController::class, 'upgradeToEoOwner'])->name('role-upgrade');
         });
     });
+
 Route::prefix('events')
     ->name('event.')
-    ->middleware(['auth:sanctum', 'role:eo-owner', 'check.demo.access'])
+    ->middleware(['auth:sanctum', 'role:eo-owner'])
     ->group(function () {
-        Route::post('/store', [EventController::class, 'store'])->name('store');
         Route::put('/update/{id}', [EventController::class, 'update'])->name('update');
         Route::delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
     });
 
 Route::prefix('facilities')
     ->name('facility.')
-    ->middleware('auth:sanctum', 'role:super-admin|eo-owner', 'check.demo.access')
+    ->middleware('auth:sanctum', 'role:super-admin|eo-owner')
     ->group(function () {
         Route::get('/', [FacilityController::class, 'index'])->name('index');
         Route::post('/store', [FacilityController::class, 'store'])->name('store');
         Route::put('/update/{id}', [FacilityController::class, 'update'])->name('update');
         Route::delete('/{id}', [FacilityController::class, 'destroy'])->name('destroy');
+    });
+
+Route::prefix('tnc')
+    ->name('tnc.')
+    ->middleware('auth:sanctum', 'role:super-admin')
+    ->group(function () {
+        Route::get('/', [TermAndConController::class, 'index'])->name('index');
+        Route::get('/{type}/latest', [TermAndConController::class, 'latestByType'])->name('latest');
+        Route::post('/', [TermAndConController::class, 'store'])->name('store');
+        Route::put('/{id}', [TermAndConController::class, 'update'])->name('update');
+        Route::delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
     });

@@ -64,4 +64,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(OtpCode::class);
     }
+
+    public function tncStatus()
+    {
+        return $this->hasOne(tncStatus::class);
+    }
 }

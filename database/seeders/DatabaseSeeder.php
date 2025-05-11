@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             FacilitySeeder::class,
             TicketTypeSeeder::class,
+            // TermAndConSeeder::class,
         ]);
     }
 }

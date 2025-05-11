@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enum\Status\EventStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -22,7 +23,14 @@ class Event extends Model
         'approval_status',
         'contact_phone',
     ];
-    
+
+    protected function casts(): array
+    {
+        return [
+            'status' => EventStatusEnum::class
+        ];
+    }
+
     public function eventOrganizer()
     {
         return $this->belongsTo(EventOrganizer::class, 'eo_id');
@@ -36,5 +44,10 @@ class Event extends Model
     public function tickets()
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function tnc()
+    {
+        return $this->belongsTo(TermAndCon::class, 'tnc_id');
     }
 }
