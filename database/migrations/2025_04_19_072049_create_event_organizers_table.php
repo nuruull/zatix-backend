@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('name');
             $table->string('logo')->nullable();
             $table->text('description')->nullable();
+            $table->text('email_eo')->nullable();
+            $table->text('phone_no_eo')->nullable();
+            $table->text('address_eo')->nullable();
             $table->timestamps();
 
             $table->foreign('eo_owner_id')->references('id')->on('users')->onDelete('cascade');

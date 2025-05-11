@@ -34,16 +34,6 @@ class EventController extends Controller
     public function store(Request $request)
     {
         try {
-            $user = auth()->user();
-            $approvedDemoRequest = $user->demoRequest()
-                ->where('status', 'approved')
-                ->first();
-
-            if (!$approvedDemoRequest) {
-                return response()->json([
-                    'message' => 'Anda belum memiliki persetujuan demo request. Tidak dapat membuat event.',
-                ], 403);
-            }
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
@@ -53,6 +43,8 @@ class EventController extends Controller
                 'end_time' => 'required|date_format:H:i',
                 'location' => 'required|string|max:255',
                 'contact_phone' => 'required|string|max:20',
+                'tnc_id' => 'required|exists:terms_and_cons,id',
+                'is_accepted' => 'required|boolean|in:1',
                 'facilities' => 'nullable|array|exists:facilities,id',
                 'tickets' => 'nullable|array',
                 'tickets.*.name' => 'required|string|max:255',
@@ -68,7 +60,8 @@ class EventController extends Controller
                 $event = Event::create([
                     'eo_id' => auth()->id(),
                     'name' => $validated['name'],
-                    'description' => $validated['description'],'start_date' => $validated['start_date'],
+                    'description' => $validated['description'],
+                    'start_date' => $validated['start_date'],
                     'start_time' => $validated['start_time'],
                     'end_date' => $validated['end_date'],
                     'end_time' => $validated['end_time'],
@@ -76,6 +69,8 @@ class EventController extends Controller
                     'status' => 'draft', // Default
                     'approval_status' => 'pending', // Default
                     'contact_phone' => $validated['contact_phone'],
+                    'tnc_id' => $validated['tnc_id'],
+                    'is_accepted' => $validated['is_accepted'],
                 ]);
 
                 if (!empty($validated['facilities'])) {
@@ -87,7 +82,10 @@ class EventController extends Controller
                         $event->tickets()->create($ticketData);
                     }
                 }
-                return response()->json($event, 201);
+                return response()->json([
+                    'message' => 'Event created successfully and your account has been upgraded to EO Owner',
+                    'data' => $event
+                ], 201);
             });
         } catch (ValidationException $e) {
             return response()->json([
@@ -125,7 +123,7 @@ class EventController extends Controller
                 'contact_phone' => 'sometimes|required|string|max:20',
                 'facilities' => 'nullable|array|exists:facilities,id',
                 'tickets' => 'nullable|array',
-                'tickets.*.id' => 'sometimes|required|exists:tickets,id', // Untuk update ticket existing
+                'tickets.*.id' => 'sometimes|required|exists:tickets,id',
                 'tickets.*.name' => 'required_with:tickets|string|max:255',
                 'tickets.*.price' => 'required_with:tickets|numeric|min:0',
                 'tickets.*.stock' => 'required_with:tickets|integer|min:0',
@@ -136,9 +134,6 @@ class EventController extends Controller
             ]);
 
             $event = Event::findOrFail($id);
-
-            // Authorization check (contoh menggunakan policy)
-            $this->authorize('update', $event);
 
             return DB::transaction(function () use ($validated, $event) {
                 // Update data dasar event

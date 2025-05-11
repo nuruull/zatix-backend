@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('eo_id');
             $table->string('name');
-            $table->text('slug')->unique();
+            // $table->text('slug')->unique();
             $table->string('poster')->nullable();
             $table->text('description')->nullable();
             $table->date('start_date');
@@ -26,9 +26,12 @@ return new class extends Migration
             $table->enum('status', ['draft', 'active', 'completed'])->default('draft');
             $table->enum('approval_status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->string('contact_phone');
+            $table->unsignedBigInteger('tnc_id');
+            $table->boolean('is_accepted')->default(false);
             $table->timestamps();
-
+            
             $table->foreign('eo_id')->references('id')->on('event_organizers')->onDelete('cascade');
+            $table->foreign('tnc_id')->references('id')->on('terms_and_cons')->onDelete('cascade');
         });
     }
 
