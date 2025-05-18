@@ -1,14 +1,18 @@
 <?php
 
-use App\Http\Controllers\API\AuthController;
-use App\Http\Controllers\API\DemoRequestController;
-use App\Http\Controllers\API\EventController;
-use App\Http\Controllers\API\FacilityController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\API\PasswordResetLinkController;
-use App\Http\Controllers\API\NewPasswordController;
-use App\Http\Controllers\TermAndConController;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\API\AuthController;
+use App\Http\Controllers\API\EventController;
+use App\Http\Controllers\API\EventTncController;
+use App\Http\Controllers\API\FacilityController;
+use App\Http\Controllers\API\TermAndConController;
+use App\Http\Controllers\API\DemoRequestController;
+use App\Http\Controllers\API\NewPasswordController;
+use App\Http\Controllers\API\UserAgreementController;
+use App\Http\Controllers\API\EventOrganizerController;
+use App\Http\Controllers\API\PasswordResetLinkController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -34,6 +38,7 @@ Route::get('test', function () {
     dd('hi');
 });
 
+// Route::group(['middleware' => 'cors'], function () {
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
@@ -44,6 +49,7 @@ Route::post('/reset-password', [NewPasswordController::class, 'store']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/user/agree-tnc', [UserAgreementController::class, 'agreeToTnc']);
 });
 
 Route::prefix('events')->name('event.')->group(function () {
@@ -70,17 +76,29 @@ Route::prefix('demo-requests')
         });
     });
 
+Route::prefix('event-organizers')->middleware(['auth:sanctum', 'role:eo-owner'])->group(function () {
+    Route::get('/', [EventOrganizerController::class, 'index']);
+    Route::get('/{id}', [EventOrganizerController::class, 'show']);
+    Route::post('/', [EventOrganizerController::class, 'store']);
+    Route::put('/{id}', [EventOrganizerController::class, 'update']);
+    Route::delete('/{id}', [EventOrganizerController::class, 'destroy']);
+});
+
 Route::prefix('events')
     ->name('event.')
     ->middleware(['auth:sanctum', 'role:eo-owner'])
     ->group(function () {
+        Route::prefix('tnc')->name('tnc.')->group(function () {
+            Route::get('/', [EventTncController::class, 'show'])->name('show');
+            Route::post('/agree', [EventTncController::class, 'agree'])->name('agree');
+        });
         Route::put('/update/{id}', [EventController::class, 'update'])->name('update');
         Route::delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
     });
 
 Route::prefix('facilities')
     ->name('facility.')
-    ->middleware('auth:sanctum', 'role:super-admin|eo-owner')
+    ->middleware(['auth:sanctum', 'role:super-admin|eo-owner'])
     ->group(function () {
         Route::get('/', [FacilityController::class, 'index'])->name('index');
         Route::post('/store', [FacilityController::class, 'store'])->name('store');
@@ -90,7 +108,7 @@ Route::prefix('facilities')
 
 Route::prefix('tnc')
     ->name('tnc.')
-    ->middleware('auth:sanctum', 'role:super-admin')
+    ->middleware(['auth:sanctum', 'role:super-admin'])
     ->group(function () {
         Route::get('/', [TermAndConController::class, 'index'])->name('index');
         Route::get('/{type}/latest', [TermAndConController::class, 'latestByType'])->name('latest');
@@ -98,3 +116,6 @@ Route::prefix('tnc')
         Route::put('/{id}', [TermAndConController::class, 'update'])->name('update');
         Route::delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
     });
+// });
+
+

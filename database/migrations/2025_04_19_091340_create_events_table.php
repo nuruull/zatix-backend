@@ -23,15 +23,14 @@ return new class extends Migration
             $table->date('end_date');
             $table->time('end_time');
             $table->string('location');
-            $table->enum('status', ['draft', 'active', 'completed'])->default('draft');
-            $table->enum('approval_status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->string('status')->default('draft');
+            $table->string('approval_status')->default('pending');
+            $table->boolean('is_published')->default(false);
+            $table->boolean('is_public')->default(false);
             $table->string('contact_phone');
-            $table->unsignedBigInteger('tnc_id');
-            $table->boolean('is_accepted')->default(false);
             $table->timestamps();
-            
+
             $table->foreign('eo_id')->references('id')->on('event_organizers')->onDelete('cascade');
-            $table->foreign('tnc_id')->references('id')->on('terms_and_cons')->onDelete('cascade');
         });
     }
 

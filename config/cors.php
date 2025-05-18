@@ -19,7 +19,8 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => ["*"],
+    // 'allowed_origins' => [env('ALLOWED_ORIGIN')],
 
     'allowed_origins_patterns' => [],
 
