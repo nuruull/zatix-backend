@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enum\Status\ApprovalStatusEventEnum;
 use App\Enum\Status\EventStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,13 +22,18 @@ class Event extends Model
         'location',
         'status',
         'approval_status',
+        'is_published',
+        'is_public',
         'contact_phone',
+        'tnc_id',
+        'is_accepted'
     ];
 
     protected function casts(): array
     {
         return [
-            'status' => EventStatusEnum::class
+            'status' => EventStatusEnum::class,
+            'approval_status' => ApprovalStatusEventEnum::class
         ];
     }
 
@@ -49,5 +55,9 @@ class Event extends Model
     public function tnc()
     {
         return $this->belongsTo(TermAndCon::class, 'tnc_id');
+    }
+
+    public function tncStatuses(){
+        return $this->hasMany(TncStatus::class);
     }
 }

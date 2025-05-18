@@ -71,6 +71,8 @@ class EventController extends Controller
                     'contact_phone' => $validated['contact_phone'],
                     'tnc_id' => $validated['tnc_id'],
                     'is_accepted' => $validated['is_accepted'],
+                    'is_published' => false,
+                    'is_public' => false,
                 ]);
 
                 if (!empty($validated['facilities'])) {
@@ -83,8 +85,8 @@ class EventController extends Controller
                     }
                 }
                 return response()->json([
-                    'message' => 'Event created successfully and your account has been upgraded to EO Owner',
-                    'data' => $event
+                    'message' => 'Event created successfully',
+                    'data' => $event->load(['facilities', 'tickets'])
                 ], 201);
             });
         } catch (ValidationException $e) {
@@ -140,12 +142,10 @@ class EventController extends Controller
                 $event->update([
                     'name' => $validated['name'] ?? $event->name,
                     'description' => $validated['description'] ?? $event->description,
-                    'start_datetime' => isset($validated['start_date'], $validated['start_time'])
-                        ? Carbon::parse($validated['start_date'] . ' ' . $validated['start_time'])
-                        : $event->start_datetime,
-                    'end_datetime' => isset($validated['end_date'], $validated['end_time'])
-                        ? Carbon::parse($validated['end_date'] . ' ' . $validated['end_time'])
-                        : $event->end_datetime,
+                    'start_date' => $validated['start_date'] ?? $event->start_date,
+                    'start_time' => $validated['start_time'] ?? $event->start_time,
+                    'end_date' => $validated['end_date'] ?? $event->end_date,
+                    'end_time' => $validated['end_time'] ?? $event->end_time,
                     'location' => $validated['location'] ?? $event->location,
                     'contact_phone' => $validated['contact_phone'] ?? $event->contact_phone,
                 ]);

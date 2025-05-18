@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
 use App\Models\DemoRequest;
-use App\Notifications\DemoRequestUpdated;
-use App\Notifications\RoleUpgradedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\BaseController;
+use App\Notifications\DemoRequestUpdated;
+use App\Notifications\RoleUpgradedNotification;
 
-class   DemoRequestController extends Controller
+class   DemoRequestController extends BaseController
 {
     //Super Admin
     public function index()

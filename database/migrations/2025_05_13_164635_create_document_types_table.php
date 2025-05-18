@@ -11,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('terms_and_cons', function (Blueprint $table) {
+        Schema::create('document_types', function (Blueprint $table) {
             $table->id();
-            $table->text('content');
+            $table->unsignedBigInteger('eo_id');
             $table->string('type');
             $table->timestamps();
+
+            $table->foreign('eo_id')->references('id')->on('event_organizers')->onDelete('cascade');
         });
     }
 
@@ -24,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('terms_and_cons');
-    }
+        Schema::dropIfExists('document_types');
+    }   
 };

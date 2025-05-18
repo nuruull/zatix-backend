@@ -65,8 +65,15 @@ class User extends Authenticatable
         return $this->hasOne(OtpCode::class);
     }
 
-    public function tncStatus()
+    public function tncStatuses()
     {
-        return $this->hasOne(tncStatus::class);
+        return $this->hasMany(TncStatus::class);
     }
+
+    // public function acceptedTncs()
+    // {
+    //     return $this->belongsToMany(TermAndCon::class, 'tnc_status', 'user_id', 'tnc_id')
+    //         ->withPivot('accepted_at')
+    //         ->withTimestamps();
+    // }
 }

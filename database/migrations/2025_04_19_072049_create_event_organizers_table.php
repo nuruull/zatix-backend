@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -20,6 +19,7 @@ return new class extends Migration
             $table->text('email_eo')->nullable();
             $table->text('phone_no_eo')->nullable();
             $table->text('address_eo')->nullable();
+            $table->boolean('is_doc_verified')->default(false);
             $table->timestamps();
 
             $table->foreign('eo_owner_id')->references('id')->on('users')->onDelete('cascade');
