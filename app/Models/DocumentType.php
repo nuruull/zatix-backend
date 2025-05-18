@@ -23,7 +23,7 @@ class DocumentType extends Model
         return $this->belongsTo(EventOrganizer::class);
     }
 
-    public function individualDocuments()
+    public function individualDocument()
     {
         return $this->hasOne(IndividualDocument::class);
     }
