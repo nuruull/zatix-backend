@@ -9,9 +9,12 @@ use App\Http\Controllers\API\FacilityController;
 use App\Http\Controllers\API\TermAndConController;
 use App\Http\Controllers\API\DemoRequestController;
 use App\Http\Controllers\API\NewPasswordController;
+use App\Http\Controllers\API\DocumentTypeController;
 use App\Http\Controllers\API\UserAgreementController;
 use App\Http\Controllers\API\EventOrganizerController;
 use App\Http\Controllers\API\PasswordResetLinkController;
+use App\Http\Controllers\API\IndividualDocumentController;
+use App\Http\Controllers\API\OrganizationDocumentController;
 
 
 /*
@@ -49,7 +52,6 @@ Route::post('/reset-password', [NewPasswordController::class, 'store']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/user/agree-tnc', [UserAgreementController::class, 'agreeToTnc']);
 });
 
 Route::prefix('events')->name('event.')->group(function () {
@@ -76,24 +78,40 @@ Route::prefix('demo-requests')
         });
     });
 
-Route::prefix('event-organizers')->middleware(['auth:sanctum', 'role:eo-owner'])->group(function () {
-    Route::get('/', [EventOrganizerController::class, 'index']);
-    Route::get('/{id}', [EventOrganizerController::class, 'show']);
-    Route::post('/', [EventOrganizerController::class, 'store']);
-    Route::put('/{id}', [EventOrganizerController::class, 'update']);
-    Route::delete('/{id}', [EventOrganizerController::class, 'destroy']);
+Route::prefix('event-organizers')->middleware(['auth:sanctum'])->group(function () {
+    Route::middleware(['role:eo-owner'])->group(function () {
+        Route::post('/create', [EventOrganizerController::class, 'store']);
+        Route::put('/edit/{id}', [EventOrganizerController::class, 'update']);
+        Route::delete('/{id}', [EventOrganizerController::class, 'destroy']);
+        Route::post('{eo_id}/document-type', [DocumentTypeController::class, 'store']);
+        Route::post('document-type/{id}/individual', [IndividualDocumentController::class, 'store']);
+        Route::get('document-type/{id}/individual', [IndividualDocumentController::class, 'show']);
+        Route::post('document-type/{id}/organization', [OrganizationDocumentController::class, 'store']);
+        Route::get('document-type/{id}/organization', [OrganizationDocumentController::class, 'show']);
+    });
+    Route::middleware(['role:super-admin'])->group(function () {
+        Route::get('/', [EventOrganizerController::class, 'index']);
+        Route::get('/{id}', [EventOrganizerController::class, 'show']);
+    });
 });
+
+
+Route::prefix('tnc-events')
+    ->name('tnc=event.')
+    ->middleware(['auth:sanctum', 'role:eo-owner'])
+    ->group(function () {
+        Route::get('/', [EventTncController::class, 'show'])->name('show');
+        Route::post('/accept', [EventTncController::class, 'agree'])->name('accept');
+    });
 
 Route::prefix('events')
     ->name('event.')
     ->middleware(['auth:sanctum', 'role:eo-owner'])
     ->group(function () {
-        Route::prefix('tnc')->name('tnc.')->group(function () {
-            Route::get('/', [EventTncController::class, 'show'])->name('show');
-            Route::post('/agree', [EventTncController::class, 'agree'])->name('agree');
-        });
+
         Route::put('/update/{id}', [EventController::class, 'update'])->name('update');
         Route::delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/publish', [EventController::class, 'publish']);
     });
 
 Route::prefix('facilities')
@@ -118,4 +136,16 @@ Route::prefix('tnc')
     });
 // });
 
+Route::prefix('documents')
+    ->middleware(['auth:sanctum', 'role:super-admin'])
+    ->group(function () {
+        Route::prefix('individual')->group(function () {
+            Route::get('/pending', [IndividualDocumentController::class, 'listPending']);
+            Route::post('/{id}/verify', [IndividualDocumentController::class, 'verify']);
+        });
+        Route::prefix('organization')->group(function () {
+            Route::get('/pending', [OrganizationDocumentController::class, 'listPending']);
+            Route::post('/{id}/verify', [OrganizationDocumentController::class, 'verify']);
+        });
+    });
 

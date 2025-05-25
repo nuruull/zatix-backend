@@ -2,19 +2,22 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
-use App\Models\Event;
 use Carbon\Carbon;
-use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Database\QueryException;
+use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Enum\Status\EventStatusEnum;
+use App\Http\Controllers\Controller;
+use App\Enum\Status\DocumentStatusEnum;
+use Illuminate\Database\QueryException;
+use App\Http\Controllers\BaseController;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
-class EventController extends Controller
+class EventController extends BaseController
 {
     public function index()
     {
@@ -34,6 +37,8 @@ class EventController extends Controller
     public function store(Request $request)
     {
         try {
+
+            DB::beginTransaction();
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
@@ -56,6 +61,15 @@ class EventController extends Controller
                 'tickets.*.ticket_type_id' => 'required|exists:ticket_types,id',
             ]);
 
+
+            if (!$validated['is_accepted']) {
+                return $this->sendResponse(
+                    [],
+                    'You must agree to the terms and conditions to create an event.',
+                    403
+                );
+            }
+
             return DB::transaction(function () use ($validated) {
                 $event = Event::create([
                     'eo_id' => auth()->id(),
@@ -67,7 +81,7 @@ class EventController extends Controller
                     'end_time' => $validated['end_time'],
                     'location' => $validated['location'],
                     'status' => 'draft', // Default
-                    'approval_status' => 'pending', // Default
+                    // 'approval_status' => 'pending',
                     'contact_phone' => $validated['contact_phone'],
                     'tnc_id' => $validated['tnc_id'],
                     'is_accepted' => $validated['is_accepted'],
@@ -84,26 +98,33 @@ class EventController extends Controller
                         $event->tickets()->create($ticketData);
                     }
                 }
+
+                DB::commit();
+
                 return response()->json([
                     'message' => 'Event created successfully',
                     'data' => $event->load(['facilities', 'tickets'])
                 ], 201);
             });
         } catch (ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'message' => 'Validation failed',
                 'errors' => $e->errors(),
             ], 422);
         } catch (QueryException $e) {
+            DB::rollBack();
             Log::error('Database error in EventController@store: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to create event due to database error',
             ], 500);
         } catch (HttpException $e) {
+            DB::rollBack();
             return response()->json([
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Unexpected error in EventController@store: ' . $e->getMessage());
             return response()->json([
                 'message' => 'An unexpected error occurred',
@@ -114,6 +135,21 @@ class EventController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            $event = Event::find($id);
+
+            if (!$event) {
+                return response()->json(['message' => 'Event not found'], 404);
+            }
+
+            if ($event->eo_id !== auth()->id()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if ($event->status !== EventStatusEnum::DRAFT) {
+                return response()->json(['message' => 'Only draft events can be updated'], 403);
+            }
+
+            DB::beginTransaction();
             $validated = $request->validate([
                 'name' => 'sometimes|required|string|max:255',
                 'description' => 'nullable|string',
@@ -218,6 +254,57 @@ class EventController extends Controller
                 'message' => 'Something went wrong while deleting the event',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function publish($id)
+    {
+        try {
+            $event = Event::with('eventOrganizer.documentType')->find($id);
+
+            if (!$event) {
+                return response()->json(['message' => 'Event not found'], 404);
+            }
+
+            if ($event->eo_id !== auth()->id()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if ($event->is_published) {
+                return response()->json(['message' => 'Event already published'], 400);
+            }
+
+            $eo = $event->eventOrganizer;
+
+            $missingFields = [];
+            foreach (['email_eo', 'phone_no_eo', 'address_eo', 'description'] as $field) {
+                if (empty($eo->$field))
+                    $missingFields[] = $field;
+            }
+
+            if (!empty($missingFields)) {
+                return response()->json([
+                    'message' => 'Lengkapi data EO terlebih dahulu',
+                    'missing_fields' => $missingFields
+                ], 422);
+            }
+
+            $documentType = $eo->documentType;
+
+            if (!$documentType || $documentType->status !== DocumentStatusEnum::VERIFIED) {
+                return response()->json([
+                    'message' => 'Dokumen legal belum diverifikasi'
+                ], 422);
+            }
+
+            $event->update([
+                'is_published' => true,
+                'status' => EventStatusEnum::ACTIVE
+            ]);
+            return response()->json(['message' => 'Event published successfully']);
+        } catch (\Exception $e) {
+            Log::error('Failed to publish event: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to publish event'], 500);
         }
     }
 }

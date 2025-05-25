@@ -11,13 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('document_types', function (Blueprint $table) {
+        Schema::create('documents', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('eo_id');
-            $table->string('type');
+            $table->unsignedBigInteger('key_id');
+            $table->string('key_name'); //eo_id atau user_id
+            $table->string('type'); //ktp, npwp, nib
+            $table->string('file'); 
+            $table->string('number');
+            $table->string('name');
+            $table->string('address');
             $table->timestamps();
-
-            $table->foreign('eo_id')->references('id')->on('event_organizers')->onDelete('cascade');
         });
     }
 
@@ -26,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('document_types');
+        Schema::dropIfExists('documents');
     }
 };

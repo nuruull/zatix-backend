@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('npwp_number')->nullable();
             $table->string('npwp_name')->nullable();
             $table->text('npwp_address')->nullable();
+            $table->string('status')->default('pending');
             $table->timestamps();
 
             $table->foreign('doc_type_id')->references('id')->on('document_types')->onDelete('cascade');

@@ -48,7 +48,7 @@ class AuthController extends BaseController
                 'name' => 'required|string|max:100',
                 'email' => 'required|string|email',
                 'password' => 'required|string|confirmed|min:8',
-                'is_tnc_accepted' => 'required|boolend|accepted'
+                'is_tnc_accepted' => 'required|boolean|accepted'
             ]);
 
             $tnc = TermAndCon::where('type', 'general')->latest()->first();
@@ -57,7 +57,9 @@ class AuthController extends BaseController
             }
 
             $user = User::where('email', $request->email)->first();
-            if (!$user) {
+
+            if ($user == null) {
+
                 $user = User::create([
                     'name' => $validatedData['name'],
                     'email' => $validatedData['email'],
@@ -69,9 +71,10 @@ class AuthController extends BaseController
                 TncStatus::create([
                     'tnc_id' => $tnc->id,
                     'user_id' => $user->id,
-                    'accepted_at' => $tnc->now(),
+                    'accepted_at' => \now(),
                 ]);
             }
+
 
             if ($user->email_verified_at == null) {
                 $otp = $this->otpService->generateOtp($user);
@@ -83,6 +86,8 @@ class AuthController extends BaseController
                         'Registration successful but failed to send OTP email'
                     );
                 }
+                DB::commit();
+
                 return $this->sendResponse(
                     [
                         'email' => $user->email,
@@ -93,7 +98,6 @@ class AuthController extends BaseController
                 );
             }
 
-            DB::commit();
 
             return $this->sendResponse(
                 ['user' => $user],
