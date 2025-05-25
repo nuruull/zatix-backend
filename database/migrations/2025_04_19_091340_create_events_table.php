@@ -24,7 +24,7 @@ return new class extends Migration
             $table->time('end_time');
             $table->string('location');
             $table->string('status')->default('draft');
-            $table->string('approval_status')->default('pending');
+            // $table->string('approval_status')->default('pending');
             $table->boolean('is_published')->default(false);
             $table->boolean('is_public')->default(false);
             $table->string('contact_phone');

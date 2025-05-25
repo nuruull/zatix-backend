@@ -9,7 +9,7 @@ class TncStatus extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id','user_id', 'event_id', 'accepted_at'];
+    protected $fillable = ['tnc_id', 'user_id', 'event_id', 'accepted_at'];
 
     protected $casts = [
         'accepted_at'=> 'datetime',

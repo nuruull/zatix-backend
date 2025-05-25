@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 class DocumentType extends Model
 {
     use HasFactory;
-    protected $fillable = ['eo_id', 'type'];
+    protected $fillable = ['eo_id', 'type', 'status', 'rejected_reason'];
 
     protected function casts(): array
     {

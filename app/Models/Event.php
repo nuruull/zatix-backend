@@ -21,7 +21,7 @@ class Event extends Model
         'end_time',
         'location',
         'status',
-        'approval_status',
+        // 'approval_status',
         'is_published',
         'is_public',
         'contact_phone',
@@ -33,7 +33,7 @@ class Event extends Model
     {
         return [
             'status' => EventStatusEnum::class,
-            'approval_status' => ApprovalStatusEventEnum::class
+            // 'approval_status' => ApprovalStatusEventEnum::class
         ];
     }
 

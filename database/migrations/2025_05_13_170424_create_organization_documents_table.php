@@ -21,6 +21,7 @@ return new class extends Migration {
             $table->string('nib_number');
             $table->string('nib_name');
             $table->text('nib_address');
+            $table->string('status')->default('pending');
             $table->timestamps();
 
             $table->foreign('doc_type_id')->references('id')->on('document_types')->onDelete('cascade');

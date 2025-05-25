@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Enum\Status\TncTypeEnum;
 use App\Http\Controllers\BaseController;
 use App\Models\TermAndCon;
 use App\Models\TncStatus;
@@ -11,7 +12,7 @@ class EventTncController extends BaseController
 {
     public function show()
     {
-        $eventTnc = TermAndCon::where('type', 'event')->latest()->first();
+        $eventTnc = TermAndCon::where('type', TncTypeEnum::EVENT->value)->latest()->first();
 
         if (!$eventTnc) {
             return $this->sendError(
@@ -31,7 +32,7 @@ class EventTncController extends BaseController
     }
 
     public function agree(Request $request) {
-        $eventTnc = TermAndCon::where('type', 'event')->latest()->first();
+        $eventTnc = TermAndCon::where('type', TncTypeEnum::EVENT->value)->latest()->first();
 
         if (!$eventTnc) {
             return $this->sendError(

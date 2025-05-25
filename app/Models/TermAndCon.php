@@ -29,11 +29,4 @@ class TermAndCon extends Model
     {
         return $this->hasMany(TncStatus::class, 'tnc_id');
     }
-
-    // public function acceptedUsers()
-    // {
-    //     return $this->belongsToMany(User::class, 'tnc_status', 'tnc_id', 'user_id')
-    //         ->withPivot('accepted_at')
-    //         ->withTimestamps();
-    // }
 }
