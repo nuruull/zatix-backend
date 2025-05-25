@@ -13,13 +13,14 @@ return new class extends Migration
     {
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('key_id');
-            $table->string('key_name'); //eo_id atau user_id
+            $table->morphs('documentable'); //eo_id atau user_id
             $table->string('type'); //ktp, npwp, nib
-            $table->string('file'); 
+            $table->string('file');
             $table->string('number');
             $table->string('name');
             $table->string('address');
+            $table->string('status')->default('pending'); //pending, verified, rejected
+            $table->text('reason_rejected')->nullable();
             $table->timestamps();
         });
     }

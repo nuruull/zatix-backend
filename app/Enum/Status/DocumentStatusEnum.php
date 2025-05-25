@@ -5,7 +5,7 @@ namespace App\Enum\Status;
 enum DocumentStatusEnum: string
 {
     case PENDING = 'pending';
-    case VERIFIED= 'verified';
+    case VERIFIED = 'verified';
     case REJECTED = 'rejected';
 
     public function label(): string

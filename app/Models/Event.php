@@ -26,7 +26,7 @@ class Event extends Model
         'is_public',
         'contact_phone',
         'tnc_id',
-        'is_accepted'
+        // 'is_accepted'
     ];
 
     protected function casts(): array
@@ -44,7 +44,7 @@ class Event extends Model
 
     public function facilities()
     {
-        return $this->belongsToMany(Facility::class);
+        return $this->belongsToMany(Facility::class, 'event_facilities', 'event_id', 'facility_id');
     }
 
     public function tickets()

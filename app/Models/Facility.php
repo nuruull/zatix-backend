@@ -12,6 +12,6 @@ class Facility extends Model
     protected $fillable = ['name', 'icon'];
 
     public function events() {
-        return $this->belongsToMany(Event::class);
+        return $this->belongsToMany(Event::class, 'event_facilities', 'facility_id', 'event_id');
     }
 }
