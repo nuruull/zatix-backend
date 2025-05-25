@@ -4,11 +4,16 @@ namespace App\Http\Controllers\API;
 
 use Carbon\Carbon;
 use App\Models\Event;
+use App\Models\TncStatus;
+use App\Models\TermAndCon;
 use Illuminate\Http\Request;
+use App\Traits\ManageFileTrait;
+use App\Enum\Status\TncTypeEnum;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Enum\Status\EventStatusEnum;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use App\Enum\Status\DocumentStatusEnum;
 use Illuminate\Database\QueryException;
 use App\Http\Controllers\BaseController;
@@ -19,6 +24,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class EventController extends BaseController
 {
+    use ManageFileTrait;
     public function index()
     {
         $events = Event::with(['facilities', 'tickets'])->get();
@@ -37,9 +43,8 @@ class EventController extends BaseController
     public function store(Request $request)
     {
         try {
-
-            DB::beginTransaction();
-            $validated = $request->validate([
+            // DB::beginTransaction();
+            $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'start_date' => 'required|date',
@@ -49,8 +54,8 @@ class EventController extends BaseController
                 'location' => 'required|string|max:255',
                 'contact_phone' => 'required|string|max:20',
                 'tnc_id' => 'required|exists:terms_and_cons,id',
-                'is_accepted' => 'required|boolean|in:1',
-                'facilities' => 'nullable|array|exists:facilities,id',
+                'facilities' => 'nullable|array',
+                'facilities.*' => 'exists:facilities,id',
                 'tickets' => 'nullable|array',
                 'tickets.*.name' => 'required|string|max:255',
                 'tickets.*.price' => 'required|numeric|min:0',
@@ -61,74 +66,102 @@ class EventController extends BaseController
                 'tickets.*.ticket_type_id' => 'required|exists:ticket_types,id',
             ]);
 
+            $user = Auth::user();
+            $eventOrganizerEntity = $user->eventOrganizer;
 
-            if (!$validated['is_accepted']) {
-                return $this->sendResponse(
+            if (!$eventOrganizerEntity) {
+                return $this->sendError(
+                    'User is not associated with a valid Event Organizer entity.',
                     [],
-                    'You must agree to the terms and conditions to create an event.',
+                    403
+                );
+            }
+            $tncFromRequest = $validatedData['tnc_id'];
+
+            $eventTnc = TermAndCon::where('id', $tncFromRequest)
+                ->where('type', TncTypeEnum::EVENT->value)
+                ->first();
+
+            if (!$eventTnc) {
+                return $this->sendError(
+                    'Invalid event terms and conditions specified.',
+                    [],
+                    422
+                );
+            }
+
+            $hasAcceptedTnc = $user->tncStatuses()
+                ->where('tnc_id', $eventTnc->id)
+                ->exists();
+
+            if (!$hasAcceptedTnc) {
+                return $this->sendError(
+                    'You must agree to the specified event terms and conditions to create an event.',
+                    [],
                     403
                 );
             }
 
-            return DB::transaction(function () use ($validated) {
-                $event = Event::create([
-                    'eo_id' => auth()->id(),
-                    'name' => $validated['name'],
-                    'description' => $validated['description'],
-                    'start_date' => $validated['start_date'],
-                    'start_time' => $validated['start_time'],
-                    'end_date' => $validated['end_date'],
-                    'end_time' => $validated['end_time'],
-                    'location' => $validated['location'],
-                    'status' => 'draft', // Default
-                    // 'approval_status' => 'pending',
-                    'contact_phone' => $validated['contact_phone'],
-                    'tnc_id' => $validated['tnc_id'],
-                    'is_accepted' => $validated['is_accepted'],
+            $event = DB::transaction(function () use ($validatedData, $user, $eventTnc, $eventOrganizerEntity) {
+                $createdEvent = Event::create([
+                    'eo_id' => $eventOrganizerEntity->id,
+                    'name' => $validatedData['name'],
+                    'description' => $validatedData['description'],
+                    'start_date' => $validatedData['start_date'],
+                    'start_time' => $validatedData['start_time'],
+                    'end_date' => $validatedData['end_date'],
+                    'end_time' => $validatedData['end_time'],
+                    'location' => $validatedData['location'],
+                    'status' => 'draft',
+                    'contact_phone' => $validatedData['contact_phone'],
+                    'tnc_id' => $eventTnc->id,
+                    // 'is_accepted' => true,
                     'is_published' => false,
                     'is_public' => false,
                 ]);
 
-                if (!empty($validated['facilities'])) {
-                    $event->facilities()->sync($validated['facilities']);
+                if (!empty($validatedData['facilities'])) {
+                    $createdEvent->facilities()->sync($validatedData['facilities']);
                 }
 
-                if (!empty($validated['tickets'])) {
-                    foreach ($validated['tickets'] as $ticketData) {
-                        $event->tickets()->create($ticketData);
+                if (!empty($validatedData['tickets'])) {
+                    foreach ($validatedData['tickets'] as $ticketData) {
+                        $createdEvent->tickets()->create($ticketData);
                     }
                 }
 
-                DB::commit();
+                TncStatus::updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'tnc_id' => $eventTnc->id,
+                        'event_id' => $createdEvent->id
+                    ],
+                    [
+                        'accepted_at' => now(),
+                        'event_id' => $createdEvent->id
+                    ]
+                );
 
-                return response()->json([
-                    'message' => 'Event created successfully',
-                    'data' => $event->load(['facilities', 'tickets'])
-                ], 201);
+                return $createdEvent->load(['facilities', 'tickets']);
             });
+
+            return $this->sendResponse(
+                $event,
+                'Event created successfully',
+                201
+            );
+
         } catch (ValidationException $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
+            // DB::rollBack();
+            return $this->sendError('Validation failed', $e->errors(), 422);
         } catch (QueryException $e) {
-            DB::rollBack();
-            Log::error('Database error in EventController@store: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Failed to create event due to database error',
-            ], 500);
-        } catch (HttpException $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], $e->getStatusCode());
+            // DB::rollBack();
+            Log::error('Database error in EventController@store: ' . $e->getMessage(), ['sql' => $e->getSql(), 'bindings' => $e->getBindings()]);
+            return $this->sendError('Failed to create event due to a database error.', [], 500);
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Unexpected error in EventController@store: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'An unexpected error occurred',
-            ], 500);
+            // DB::rollBack();
+            Log::error('Unexpected error in EventController@store: ' . $e->getMessage(), ["trace" => $e->getTraceAsString()]);
+            return $this->sendError('An unexpected error occurred while creating the event.', [], 500);
         }
     }
 

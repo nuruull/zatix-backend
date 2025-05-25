@@ -11,13 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('document_types', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('eo_id');
-            $table->string('type');
-            $table->timestamps();
-
-            $table->foreign('eo_id')->references('id')->on('event_organizers')->onDelete('cascade');
+        Schema::table('events', function (Blueprint $table) {
+            $table->foreignId('tnc_id')->nullable()->after('contact_phone')->constrained('terms_and_cons')->onDelete('set null');
         });
     }
 
@@ -26,6 +21,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('document_types');
+        Schema::table('events', function (Blueprint $table) {
+            $table->dropForeign(['tnc_id']);
+            $table->dropColumn('tnc_id');
+        });
     }
 };

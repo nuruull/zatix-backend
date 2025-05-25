@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class EventOrganizer extends Model
 {
@@ -17,8 +18,8 @@ class EventOrganizer extends Model
         return $this->belongsTo(User::class, 'eo_owner_id');
     }
 
-    public function documentType()
+    public function documents(): MorphMany
     {
-        return $this->hasOne(DocumentType::class);
+        return $this->morphMany(Document::class, 'documentable');
     }
 }
