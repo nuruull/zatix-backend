@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -50,9 +51,9 @@ class User extends Authenticatable
         $this->notify(new CustomResetPasswordNotification($token));
     }
 
-    public function eventOrganizers()
+    public function eventOrganizer()
     {
-        return $this->hasMany(EventOrganizer::class, 'eo_owner_id', 'user_id');
+        return $this->hasOne(EventOrganizer::class, 'eo_owner_id', 'id');
     }
 
     public function demoRequest()
@@ -63,5 +64,15 @@ class User extends Authenticatable
     public function otpCode()
     {
         return $this->hasOne(OtpCode::class);
+    }
+
+    public function tncStatuses()
+    {
+        return $this->hasMany(TncStatus::class);
+    }
+
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentableq');
     }
 }

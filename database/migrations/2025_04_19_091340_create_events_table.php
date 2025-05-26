@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('eo_id');
             $table->string('name');
-            $table->text('slug')->unique();
+            // $table->text('slug')->unique();
             $table->string('poster')->nullable();
             $table->text('description')->nullable();
             $table->date('start_date');
@@ -23,8 +23,10 @@ return new class extends Migration
             $table->date('end_date');
             $table->time('end_time');
             $table->string('location');
-            $table->enum('status', ['draft', 'active', 'completed'])->default('draft');
-            $table->enum('approval_status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->string('status')->default('draft');
+            // $table->string('approval_status')->default('pending');
+            $table->boolean('is_published')->default(false);
+            $table->boolean('is_public')->default(false);
             $table->string('contact_phone');
             $table->timestamps();
 

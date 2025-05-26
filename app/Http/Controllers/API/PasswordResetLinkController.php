@@ -22,7 +22,7 @@ class PasswordResetLinkController extends Controller
 
         $key = 'reset-password:' . $request->email;
 
-        if ($this->limiter->tooManyAttempts($key, 3, 3600)) {
+        if ($this->limiter->tooManyAttempts($key, 3)) {
             return response()->json([
                 'message' => 'Too many attempts. Please try again in ' . $this->limiter->availableIn($key) . ' seconds.'
             ], 429);

@@ -26,19 +26,13 @@ class OtpMail extends Mailable
         $this->otpCode = $otpCode;
     }
 
-    public function build()
-    {
-        return $this->subject('Your OTP Verification Code')
-                    ->view('emails.otp');
-    }
-
     /**
      * Get the message envelope.
      */
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Otp Mail',
+            subject: 'Your OTP Verification Code',
         );
     }
 
@@ -48,7 +42,7 @@ class OtpMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'view.name',
+            view: 'emails.otp',
         );
     }
 

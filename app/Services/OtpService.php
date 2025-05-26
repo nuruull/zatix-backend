@@ -16,13 +16,11 @@ class OtpService
 
         $otpCode = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-        $otp = OtpCode::create([
+        return OtpCode::create([
             'user_id' => $user->id,
             'code' => $otpCode,
             'expires_at' => Carbon::now()->addMinutes(15),
         ]);
-
-        return $otp;
     }
 
     public function verifyOtp(User $user, string $code)
