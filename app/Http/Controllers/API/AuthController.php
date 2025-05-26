@@ -75,7 +75,6 @@ class AuthController extends BaseController
                 ]);
             }
 
-
             if ($user->email_verified_at == null) {
                 $otp = $this->otpService->generateOtp($user);
 
