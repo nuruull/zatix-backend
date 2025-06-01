@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Carousel extends Model
 {
+    // add commit carousel model
     use HasFactory;
 
     protected $fillable = ['image', 'caption', 'link_url', 'link_target', 'is_active'];
