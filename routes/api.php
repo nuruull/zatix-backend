@@ -146,6 +146,7 @@ Route::prefix('tnc')
         Route::delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
     });
 
+//commit carousel api to git
 Route::prefix('carousels')
     ->name('carousels.')
     ->middleware(['auth:sanctum', 'role:super-admin'])
