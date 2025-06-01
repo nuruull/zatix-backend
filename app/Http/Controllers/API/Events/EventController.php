@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API\Events;
 
 use Carbon\Carbon;
 use App\Models\Event;
@@ -8,7 +8,7 @@ use App\Models\TncStatus;
 use App\Models\TermAndCon;
 use Illuminate\Http\Request;
 use App\Traits\ManageFileTrait;
-use App\Enum\Status\TncTypeEnum;
+use App\Enum\Type\TncTypeEnum;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Enum\Status\EventStatusEnum;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API\Documents;
 
 use App\Models\Document;
 use App\Traits\ManageFileTrait;

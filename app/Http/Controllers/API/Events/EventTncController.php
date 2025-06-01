@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API\Events;
 
-use App\Enum\Status\TncTypeEnum;
+use App\Enum\Type\TncTypeEnum;
 use App\Http\Controllers\BaseController;
 use App\Models\TermAndCon;
 use App\Models\TncStatus;

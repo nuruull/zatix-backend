@@ -4,7 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Models\TermAndCon;
 use Illuminate\Http\Request;
-use App\Enum\Status\TncTypeEnum;
+use App\Enum\Type\TncTypeEnum;
 use Carbon\Exceptions\Exception;
 use Illuminate\Validation\Rules\Enum;
 use App\Http\Controllers\BaseController;

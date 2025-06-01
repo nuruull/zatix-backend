@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enum\Status\TncTypeEnum;
+use App\Enum\Type\TncTypeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 

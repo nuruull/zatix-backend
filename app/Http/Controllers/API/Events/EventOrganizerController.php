@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API\Events;
 
 use App\Traits\ManageFileTrait;
 use Illuminate\Http\Exceptions\HttpResponseException;

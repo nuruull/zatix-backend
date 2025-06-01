@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Enum\Status;
+namespace App\Enum\Type;
 
 enum TncTypeEnum : string
 {

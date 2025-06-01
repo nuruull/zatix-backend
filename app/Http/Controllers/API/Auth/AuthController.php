@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\API\Auth;
 
 use App\Models\TncStatus;
 use Exception;
@@ -82,7 +82,9 @@ class AuthController extends BaseController
 
                 if (!$emailSent) {
                     return $this->sendError(
-                        'Registration successful but failed to send OTP email'
+                        'Registration successful but failed to send OTP email. Please try again later or contact support.',
+                        [],
+                        500
                     );
                 }
                 DB::commit();
@@ -90,7 +92,7 @@ class AuthController extends BaseController
                 return $this->sendResponse(
                     [
                         'email' => $user->email,
-                        'otp_code' => $otp->code,
+                        // 'otp_code' => $otp->code,
                     ],
                     'Registration successful. Please check your email for OTP.',
                     200
@@ -100,7 +102,7 @@ class AuthController extends BaseController
 
             return $this->sendResponse(
                 ['user' => $user],
-                'User already registered',
+                'This email is already registered and verified. Please login',
                 409
             );
 
@@ -123,6 +125,7 @@ class AuthController extends BaseController
 
     public function verifyOtp(Request $request)
     {
+        DB::beginTransaction();
         try {
             $validated = $request->validate([
                 'email' => 'required|exists:users,email',
@@ -139,6 +142,7 @@ class AuthController extends BaseController
             );
 
             if (!$this->otpService->verifyOtp($user, $otpCode)) {
+                DB::rollBack();
                 return $this->sendError(
                     'Invalid or expired OTP'
                 );
@@ -149,6 +153,8 @@ class AuthController extends BaseController
             $token = $user->createToken('auth_token')->plainTextToken;
             $user->assignRole('eo-owner');
 
+            DB::commit();
+
             return $this->sendResponse(
                 [
                     'access_token' => $token,
@@ -158,16 +164,18 @@ class AuthController extends BaseController
                 'OTP verified successfully'
             );
         } catch (ValidationException $exception) {
+            DB::rollBack();
             return $this->sendError(
                 'Validation Exception',
-                $exception->getMessage(),
-                202
+                $exception->errors(),
+                422
             );
         } catch (Exception $exception) {
+            DB::rollBack();
             return $this->sendError(
                 'Failed',
                 $exception->getMessage(),
-                202
+                500
             );
         }
     }
@@ -271,13 +279,13 @@ class AuthController extends BaseController
             return $this->sendError(
                 'Validation Exception',
                 $exception->getMessage(),
-                202
+                422
             );
         } catch (Exception $exception) {
             return $this->sendError(
                 'Failed',
                 $exception->getMessage(),
-                202
+                500
             );
         }
     }

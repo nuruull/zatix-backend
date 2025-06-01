@@ -1,21 +1,18 @@
 <?php
 
-use App\Http\Controllers\API\DocumentController;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\API\AuthController;
-use App\Http\Controllers\API\EventController;
-use App\Http\Controllers\API\EventTncController;
-use App\Http\Controllers\API\FacilityController;
+use App\Http\Controllers\API\Auth\AuthController;
 use App\Http\Controllers\API\TermAndConController;
 use App\Http\Controllers\API\DemoRequestController;
-use App\Http\Controllers\API\NewPasswordController;
-use App\Http\Controllers\API\DocumentTypeController;
-use App\Http\Controllers\API\UserAgreementController;
-use App\Http\Controllers\API\EventOrganizerController;
-use App\Http\Controllers\API\PasswordResetLinkController;
-use App\Http\Controllers\API\IndividualDocumentController;
-use App\Http\Controllers\API\OrganizationDocumentController;
+use App\Http\Controllers\API\Events\EventController;
+use App\Http\Controllers\API\Events\EventTncController;
+use App\Http\Controllers\API\Auth\NewPasswordController;
+use App\Http\Controllers\API\General\CarouselController;
+use App\Http\Controllers\API\Documents\DocumentController;
+use App\Http\Controllers\API\Facilities\FacilityController;
+use App\Http\Controllers\API\Events\EventOrganizerController;
+use App\Http\Controllers\API\Auth\PasswordResetLinkController;
 
 
 /*
@@ -59,6 +56,12 @@ Route::prefix('events')->name('event.')->group(function () {
     Route::get('/', [EventController::class, 'index'])->name('index');
     Route::get('/{id}', [EventController::class, 'show'])->name('show');
 });
+Route::prefix('carousels')
+    ->name('carousels.')
+    ->group(function () {
+        Route::get('/', [CarouselController::class, 'index'])->name('index');
+    });
+
 
 Route::prefix('demo-requests')
     ->name('demo-request.')
@@ -142,6 +145,16 @@ Route::prefix('tnc')
         Route::put('/{id}', [TermAndConController::class, 'update'])->name('update');
         Route::delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
     });
-// });
+
+Route::prefix('carousels')
+    ->name('carousels.')
+    ->middleware(['auth:sanctum', 'role:super-admin'])
+    ->group(function () {
+        Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->name('get-carousel-list');
+        Route::post('/', [CarouselController::class, 'store'])->name('store');
+        Route::get('/{id}', [CarouselController::class, 'show'])->name('show');
+        Route::put('/{id}', [CarouselController::class, 'update'])->name('update');
+        Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy');
+    });
 
 

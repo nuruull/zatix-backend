@@ -7,7 +7,7 @@ use App\Models\DocumentType;
 use Illuminate\Http\Request;
 use App\Traits\ManageFileTrait;
 use App\Models\IndividualDocument;
-use App\Enum\Status\DocumentTypeEnum;
+use App\Enum\Type\DocumentTypeEnum;
 use App\Enum\Status\DocumentStatusEnum;
 use App\Http\Controllers\BaseController;
 use Illuminate\Validation\ValidationException;

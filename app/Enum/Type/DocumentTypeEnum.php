@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Enum\Status;
+namespace App\Enum\Type;
 
-enum DocumentTypeEnum
+enum DocumentTypeEnum : string
 {
     case INDIVIDUAL = 'individual';
     case ORGANIZATION = 'organization';
