@@ -8,7 +8,6 @@ use App\Traits\ManageFileTrait;
 use Illuminate\Support\Facades\Log;
 use App\Enum\Type\LinkTargetTypeEnum;
 use Illuminate\Validation\Rules\Enum;
-use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\BaseController;
 use Illuminate\Support\Facades\Validator;
 
