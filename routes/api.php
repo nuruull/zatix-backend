@@ -36,7 +36,7 @@ use App\Http\Controllers\API\Auth\PasswordResetLinkController;
 
 
 Route::get('test', function () {
-    dd('hi');
+    dd('hello');
 });
 
 // Route::group(['middleware' => 'cors'], function () {
