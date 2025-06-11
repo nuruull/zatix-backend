@@ -133,6 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy');
         });
 
+        //create endpoint for activity log
     Route::middleware(['permission:view-activity-logs'])->get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
 });
 
