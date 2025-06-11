@@ -9,6 +9,7 @@ use Spatie\Activitylog\Models\Activity;
 
 class ActivityLogController extends BaseController
 {
+    //create activity log
     public function index() {
         $activities = Activity::latest()->paginate(20);
         return $this->sendResponse(
