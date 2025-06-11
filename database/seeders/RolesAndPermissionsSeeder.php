@@ -28,52 +28,75 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         foreach ($roles as $role) {
-            Role::create(['name' => $role, 'guard_name' => 'api']);
+            Role::firstOrCreate(['name' => $role, 'guard_name' => 'api']);
         }
 
         $permissions = [
-            'event.store',
-            'event.update',
-            'event.destroy',
-            'facility.store',
-            'facility.update',
-            'facility.destroy',
-            'ticket.store',
-            'ticket.update',
-            'ticket.destroy',
-            'demo-request.index',
-            'demo-request.store',
-            'demo-request.update',
-            'demo-request.current-step',
-            'demo-request.submit-pitching-schedule',
-            'demo-request.approve-pitching',
-            'demo-request.demo-account',
-            'demo-request.role-upgrade',
+            'view-any-event-organizers',
+            'view-event-organizer',
+            'create-event-organizer',
+            'update-event-organizer',
+            'delete-event-organizer',
+            'view-any-documents',
+            'view-document',
+            'create-document',
+            'update-document-status',
+            'view-any-tnc',
+            'view-latest-tnc',
+            'create-tnc',
+            'update-tnc',
+            'delete-tnc',
+            'view-tnc-event',
+            'accept-tnc-event',
+            'create-event',
+            'update-event',
+            'delete-event',
+            'publish-event',
+            'view-any-facilities',
+            'create-facility',
+            'update-facility',
+            'delete-facility',
+            'view-any-carousels',
+            'view-carousel',
+            'create-carousel',
+            'update-carousel',
+            'delete-carousel',
         ];
 
         foreach ($permissions as $permission_all) {
-            Permission::create(['name' => $permission_all, 'guard_name' => 'api']);
+            Permission::firstOrCreate(['name' => $permission_all, 'guard_name' => 'api']);
         }
 
         $perm_super_admin = [
-            'demo-request.index',
-            'demo-request.update',
-            'demo-request.approve-pitching',
-            'demo-request.demo-account',
-            'demo-request.role-upgrade',
+            'view-any-event-organizers',
+            'view-event-organizer',
+            'delete-event-organizer',
+            'view-any-documents',
+            'view-document',
+            'update-document-status',
+            'view-any-tnc',
+            'view-latest-tnc',
+            'create-tnc',
+            'update-tnc',
+            'delete-tnc',
+            'view-any-facilities',
+            'create-facility',
+            'update-facility',
+            'delete-facility',
+            'view-any-carousels',
+            'view-carousel',
+            'create-carousel',
+            'update-carousel',
+            'delete-carousel',
         ];
         $perm_eo_owner = [
-            'event.store',
-            'event.update',
-            'event.destroy',
-            'facility.store',
-            'facility.update',
-            'facility.destroy',
-            'ticket.store',
-            'ticket.update',
-            'ticket.destroy',
-            'demo-request.store',
-            'demo-request.submit-pitching-schedule',
+            'create-event-organizer',
+            'create-document',
+            'view-tnc-event',
+            'accept-tnc-event',
+            'create-event',
+            'update-event',
+            'publish-event',
         ];
         $perm_crew = [];
         $perm_finance = [];
