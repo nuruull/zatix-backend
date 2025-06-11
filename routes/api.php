@@ -7,6 +7,7 @@ use App\Http\Controllers\API\TermAndConController;
 use App\Http\Controllers\API\DemoRequestController;
 use App\Http\Controllers\API\Events\EventController;
 use App\Http\Controllers\API\Events\EventTncController;
+use App\Http\Controllers\API\Log\ActivityLogController;
 use App\Http\Controllers\API\Auth\NewPasswordController;
 use App\Http\Controllers\API\General\CarouselController;
 use App\Http\Controllers\API\Documents\DocumentController;
@@ -123,7 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
     //commit carousel api to git
     Route::prefix('carousels')
         ->name('carousels.')
-        ->middleware(['auth:sanctum', 'permission:view-any-carousels|view-carousel|create-carousel|update-carousel|delete-carousel'])
+        ->middleware(['permission:view-any-carousels|view-carousel|create-carousel|update-carousel|delete-carousel'])
         ->group(function () {
             Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->name('get-carousel-list');
             Route::post('/', [CarouselController::class, 'store'])->name('store');
@@ -131,6 +132,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{id}', [CarouselController::class, 'update'])->name('update');
             Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy');
         });
+
+    Route::middleware(['permission:view-activity-logs'])->get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
 });
 
 

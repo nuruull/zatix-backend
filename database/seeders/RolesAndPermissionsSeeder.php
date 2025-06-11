@@ -61,6 +61,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'create-carousel',
             'update-carousel',
             'delete-carousel',
+            'view-activity-logs',
         ];
 
         foreach ($permissions as $permission_all) {
@@ -88,6 +89,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'create-carousel',
             'update-carousel',
             'delete-carousel',
+            'view-activity-logs'
         ];
         $perm_eo_owner = [
             'create-event-organizer',
