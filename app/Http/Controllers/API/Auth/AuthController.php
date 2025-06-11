@@ -216,7 +216,6 @@ class AuthController extends BaseController
             return $this->sendResponse(
                 [
                     'email' => $user->email,
-                    'otp_code' => $otp->code,
                 ],
                 'New OTP has been sent to your email.'
             );
