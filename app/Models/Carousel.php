@@ -22,6 +22,7 @@ class Carousel extends Model
         ];
     }
 
+    //create log acativity for carousel model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
