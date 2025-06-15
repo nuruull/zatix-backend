@@ -22,6 +22,7 @@ class TermAndCon extends Model
         ];
     }
 
+    //create log activity for tnc model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
