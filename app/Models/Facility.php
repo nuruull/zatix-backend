@@ -13,6 +13,7 @@ class Facility extends Model
 
     protected $fillable = ['name', 'icon'];
 
+    //create log activity for facility model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
