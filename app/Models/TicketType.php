@@ -13,6 +13,7 @@ class TicketType extends Model
 
     protected $fillable = ['name', 'description'];
 
+    //create log activity for ticket type model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
