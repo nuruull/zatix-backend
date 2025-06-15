@@ -170,8 +170,8 @@ class RolesAndPermissionsSeeder extends Seeder
 
         //super admin id 1
         $user1 = User::find(1);
-        if($user1) {
-            $user1->givePermissionTo($perm_super_admin);
+        if ($user1) {
+            $user1->syncPermissions(Permission::all());
         }
     }
 }
