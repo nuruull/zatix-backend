@@ -2,18 +2,19 @@
 
 namespace App\Http\Controllers\API\Documents;
 
+use Throwable;
 use App\Models\Document;
-use App\Traits\ManageFileTrait;
 use Illuminate\Http\Request;
 use App\Models\EventOrganizer;
+use App\Traits\ManageFileTrait;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use App\Enum\Status\DocumentStatusEnum;
 use App\Http\Controllers\BaseController;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Log;
+use App\Notifications\DocumentStatusUpdated;
 use Illuminate\Validation\ValidationException;
-use Throwable;
 
 class DocumentController extends BaseController
 {
@@ -174,6 +175,12 @@ class DocumentController extends BaseController
             $document->save();
 
             $document->load('documentable');
+
+            $eoOwner = $document->documentable->eo_owner;
+            if ($eoOwner) {
+                $eoOwner->notify(new DocumentStatusUpdated($document));
+            }
+
             DB::commit();
 
             return $this->sendResponse($document, 'Document status updated successfully.');
