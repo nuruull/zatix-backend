@@ -37,6 +37,7 @@ class Event extends Model
         ];
     }
 
+    //create log acativity for event model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
