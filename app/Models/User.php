@@ -54,6 +54,7 @@ class User extends Authenticatable
         $this->notify(new CustomResetPasswordNotification($token));
     }
 
+    //create log acitivity for user
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

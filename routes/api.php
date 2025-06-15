@@ -140,31 +140,24 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('carousels')
         ->name('carousels.')
         ->group(function () {
-            Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->middleware(['can:view-any-carousels'])->name('get-carousel-list');
+            Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->middleware(['permission:view-any-carousels'])->name('get-carousel-list');
             Route::post('/', [CarouselController::class, 'store'])->name('store')->middleware(['can:create-carousel']);
             Route::get('/{id}', [CarouselController::class, 'show'])->name('show')->middleware(['can:view-carousel']);
             Route::put('/{id}', [CarouselController::class, 'update'])->name('update')->middleware(['can:update-carousel']);
             Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy')->middleware(['can:delete-carousel']);
-            // Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList']);
-            // Route::post('/', [CarouselController::class, 'store'])->name('store');
-            // Route::get('/{id}', [CarouselController::class, 'show'])->name('show');
-            // Route::put('/{id}', [CarouselController::class, 'update'])->name('update');
-            // Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy');
-
         });
 
     //create endpoint for activity log
     Route::middleware(['can:view-activity-logs'])->get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
-    // Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
 });
 
 
-Route::get('/me', function () {
-    $user = auth()->user();
-    return [
-        'user' => $user->email,
-        'roles' => $user->getRoleNames(),
-        'permissions' => $user->getAllPermissions()->pluck('name'),
-        'can_publish' => $user->can('view-any-carousels'),
-    ];
-})->middleware('auth:sanctum');
+// Route::get('/me', function () {
+//     $user = auth()->user();
+//     return [
+//         'user' => $user->email,
+//         'roles' => $user->getRoleNames(),
+//         'permissions' => $user->getAllPermissions()->pluck('name'),
+//         'can_publish' => $user->can('view-any-carousels'),
+//     ];
+// })->middleware('auth:sanctum');
