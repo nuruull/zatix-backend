@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\API\Log;
 
 use App\Http\Controllers\BaseController;
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Spatie\Activitylog\Models\Activity;
 
 class ActivityLogController extends BaseController
