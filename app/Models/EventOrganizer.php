@@ -15,6 +15,7 @@ class EventOrganizer extends Model
 
     protected $fillable = ['eo_owner_id', 'name', 'logo', 'description', 'email_eo', 'phone_no_eo', 'address_eo', 'is_doc_verified'];
 
+    //create log acativity for event organizer model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
