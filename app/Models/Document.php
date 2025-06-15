@@ -19,6 +19,7 @@ class Document extends Model
         'status'=> DocumentStatusEnum::class,
     ];
 
+    //create log acativity for document model
     public function documentable(): MorphTo
     {
         return $this->morphTo();
