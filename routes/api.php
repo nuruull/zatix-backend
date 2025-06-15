@@ -12,6 +12,7 @@ use App\Http\Controllers\API\Auth\NewPasswordController;
 use App\Http\Controllers\API\General\CarouselController;
 use App\Http\Controllers\API\Documents\DocumentController;
 use App\Http\Controllers\API\Facilities\FacilityController;
+use App\Http\Controllers\API\General\NotificationController;
 use App\Http\Controllers\API\Events\EventOrganizerController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
 
@@ -98,6 +99,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::middleware(['permission:view-document'])->get('/{document}', [DocumentController::class, 'show'])->name('show');
             Route::middleware(['permission:update-document-status'])->patch('/{document}/status', [DocumentController::class, 'updateStatus'])->name('updateStatus');
         });
+
+    Route::prefix('notifications')->name('notification.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('markAsRead');
+    });
 
     Route::prefix('tnc-events')
         ->name('tnc-event.')
