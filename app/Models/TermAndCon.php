@@ -5,10 +5,12 @@ namespace App\Models;
 use App\Enum\Type\TncTypeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class TermAndCon extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $table = "terms_and_cons";
     protected $fillable = ['type', 'content'];
@@ -18,6 +20,15 @@ class TermAndCon extends Model
         return [
             'type' => TncTypeEnum::class
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->setDescriptionForEvent(fn(string $eventName) => "TNC '{$this->name}' has been {$eventName}")
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     public function events()

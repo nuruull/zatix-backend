@@ -105,27 +105,32 @@ class RolesAndPermissionsSeeder extends Seeder
         $perm_cashier = [];
         $perm_customer = [];
 
-        $role_superadmin = Role::findByName('super-admin');
-        foreach ($perm_super_admin as $permission_superadmin) {
-            $role_superadmin->givePermissionTo($permission_superadmin);
+        $role_superadmin = Role::findByName('super-admin', 'api');
+        if ($role_superadmin) {
+            $role_superadmin->givePermissionTo(Permission::all());
         }
-        $role_eoowner = Role::findByName('eo-owner');
+
+        $role_eoowner = Role::findByName('eo-owner', 'api');
         foreach ($perm_eo_owner as $permission_eoowner) {
             $role_eoowner->givePermissionTo($permission_eoowner);
         }
-        $role_crew = Role::findByName('crew');
+
+        $role_crew = Role::findByName('crew', 'api');
         foreach ($perm_crew as $permission_crew) {
             $role_crew->givePermissionTo($permission_crew);
         }
-        $role_finance = Role::findByName('finance');
+
+        $role_finance = Role::findByName('finance', 'api');
         foreach ($perm_finance as $permission_finance) {
             $role_finance->givePermissionTo($permission_finance);
         }
-        $role_cashier = Role::findByName('cashier');
+
+        $role_cashier = Role::findByName('cashier', 'api');
         foreach ($perm_cashier as $permission_cashier) {
             $role_cashier->givePermissionTo($permission_cashier);
         }
-        $role_customer = Role::findByName('customer');
+
+        $role_customer = Role::findByName('customer', 'api');
         foreach ($perm_customer as $permission_customer) {
             $role_customer->givePermissionTo($permission_customer);
         }
@@ -161,6 +166,12 @@ class RolesAndPermissionsSeeder extends Seeder
         $user = User::find(8);
         if ($user) {
             $user->assignRole('customer');
+        }
+
+        //super admin id 1
+        $user1 = User::find(1);
+        if($user1) {
+            $user1->givePermissionTo($perm_super_admin);
         }
     }
 }

@@ -6,10 +6,12 @@ use App\Enum\Status\ApprovalStatusEventEnum;
 use App\Enum\Status\EventStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Event extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'eo_id',
@@ -21,12 +23,10 @@ class Event extends Model
         'end_time',
         'location',
         'status',
-        // 'approval_status',
         'is_published',
         'is_public',
         'contact_phone',
-        'tnc_id',
-        // 'is_accepted'
+        'tnc_id'
     ];
 
     protected function casts(): array
@@ -35,6 +35,18 @@ class Event extends Model
             'status' => EventStatusEnum::class,
             // 'approval_status' => ApprovalStatusEventEnum::class
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->setDescriptionForEvent(function(string $eventName) {
+                $eoName = $this->eventOrganizer->name ?? 'Unknown EO';
+                return "Event '{$this->name}' by '{$eoName}' has been {$eventName}";
+            })
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     public function eventOrganizer()

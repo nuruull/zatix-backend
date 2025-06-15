@@ -60,7 +60,23 @@ Route::prefix('carousels')
         Route::get('/', [CarouselController::class, 'index'])->name('index');
     });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::get('/debug-permissions', function () {
+    // Pastikan Anda mengirim token Bearer di header saat memanggil endpoint ini
+    if (Auth::check()) {
+        $user = Auth::user();
+        return response()->json([
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'roles' => $user->getRoleNames(),
+            'permissions_from_roles' => $user->getPermissionsViaRoles()->pluck('name'),
+            'can_view_carousels' => $user->can('view-any-carousels')
+        ]);
+    } else {
+        return response()->json(['message' => 'Not authenticated'], 401);
+    }
+});
+
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
@@ -118,23 +134,37 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::middleware(['permission:create-tnc'])->post('/', [TermAndConController::class, 'store'])->name('store');
             Route::middleware(['permission:update-tnc'])->put('/{id}', [TermAndConController::class, 'update'])->name('update');
             Route::middleware(['permission:delete-tnc'])->delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
-
         });
 
     //commit carousel api to git
     Route::prefix('carousels')
         ->name('carousels.')
-        ->middleware(['permission:view-any-carousels|view-carousel|create-carousel|update-carousel|delete-carousel'])
         ->group(function () {
-            Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->name('get-carousel-list');
-            Route::post('/', [CarouselController::class, 'store'])->name('store');
-            Route::get('/{id}', [CarouselController::class, 'show'])->name('show');
-            Route::put('/{id}', [CarouselController::class, 'update'])->name('update');
-            Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy');
+            Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->middleware(['can:view-any-carousels'])->name('get-carousel-list');
+            Route::post('/', [CarouselController::class, 'store'])->name('store')->middleware(['can:create-carousel']);
+            Route::get('/{id}', [CarouselController::class, 'show'])->name('show')->middleware(['can:view-carousel']);
+            Route::put('/{id}', [CarouselController::class, 'update'])->name('update')->middleware(['can:update-carousel']);
+            Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy')->middleware(['can:delete-carousel']);
+            // Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList']);
+            // Route::post('/', [CarouselController::class, 'store'])->name('store');
+            // Route::get('/{id}', [CarouselController::class, 'show'])->name('show');
+            // Route::put('/{id}', [CarouselController::class, 'update'])->name('update');
+            // Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy');
+
         });
 
-        //create endpoint for activity log
-    Route::middleware(['permission:view-activity-logs'])->get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
+    //create endpoint for activity log
+    Route::middleware(['can:view-activity-logs'])->get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
+    // Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
 });
 
 
+Route::get('/me', function () {
+    $user = auth()->user();
+    return [
+        'user' => $user->email,
+        'roles' => $user->getRoleNames(),
+        'permissions' => $user->getAllPermissions()->pluck('name'),
+        'can_publish' => $user->can('view-any-carousels'),
+    ];
+})->middleware('auth:sanctum');

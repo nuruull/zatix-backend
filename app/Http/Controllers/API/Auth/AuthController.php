@@ -298,6 +298,6 @@ class AuthController extends BaseController
 
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        return response()->json(auth()->user()->getPermissionsViaRoles()->pluck('name'));
     }
 }
