@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API\Documents;
 
 use Throwable;
+use App\Models\User;
 use App\Models\Document;
 use Illuminate\Http\Request;
 use App\Models\EventOrganizer;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Enum\Status\DocumentStatusEnum;
 use App\Http\Controllers\BaseController;
 use App\Notifications\DocumentStatusUpdated;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\NewVerificationRequest;
 use Illuminate\Validation\ValidationException;
 
 class DocumentController extends BaseController
@@ -63,6 +66,11 @@ class DocumentController extends BaseController
                 'address' => $validated['address'],
                 'status' => DocumentStatusEnum::PENDING,
             ]);
+
+            $superAdmins = User::role('super-admin')->get();
+            if ($superAdmins->isNotEmpty()) {
+                Notification::send($superAdmins, new NewVerificationRequest($document));
+            }
 
             $document->load('documentable');
             DB::commit();
