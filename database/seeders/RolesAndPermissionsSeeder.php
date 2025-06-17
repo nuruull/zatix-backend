@@ -62,6 +62,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'update-carousel',
             'delete-carousel',
             'view-activity-logs',
+            'view-all-notifications',
+            'mark-notification-as-read'
         ];
 
         foreach ($permissions as $permission_all) {
@@ -89,7 +91,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'create-carousel',
             'update-carousel',
             'delete-carousel',
-            'view-activity-logs'
+            'view-activity-logs',
+            'view-all-notifications',
+            'mark-notification-as-read'
         ];
         $perm_eo_owner = [
             'create-event-organizer',
@@ -99,6 +103,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'create-event',
             'update-event',
             'publish-event',
+            'view-all-notifications',
+            'mark-notification-as-read'
         ];
         $perm_crew = [];
         $perm_finance = [];
