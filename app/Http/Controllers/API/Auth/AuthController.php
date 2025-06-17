@@ -89,23 +89,24 @@ class AuthController extends BaseController
                 }
                 DB::commit();
 
+                // --- BLOK KODE UNTUK TESTING ---
+                $responseData = ['email' => $user->email];
+                if (app()->isLocal()) {
+                    $responseData['otp_code_for_testing'] = $otp->code;
+                }
+                // ------------------------------------
+
                 return $this->sendResponse(
-                    [
-                        'email' => $user->email,
-                        // 'otp_code' => $otp->code,
-                    ],
+                    $responseData,
                     'Registration successful. Please check your email for OTP.',
                     200
                 );
             }
-
-
             return $this->sendResponse(
                 ['user' => $user],
                 'This email is already registered and verified. Please login',
                 409
             );
-
         } catch (ValidationException $exception) {
             DB::rollBack();
             return $this->sendError(
@@ -213,10 +214,15 @@ class AuthController extends BaseController
                 );
             }
 
+            // --- BLOK KODE UNTUK TESTING ---
+            $responseData = ['email' => $user->email];
+            if (app()->isLocal()) {
+                $responseData['otp_code_for_testing'] = $otp->code;
+            }
+            // ------------------------------------
+
             return $this->sendResponse(
-                [
-                    'email' => $user->email,
-                ],
+                $responseData,
                 'New OTP has been sent to your email.'
             );
         } catch (ValidationException $exception) {
@@ -298,6 +304,6 @@ class AuthController extends BaseController
 
     public function me(Request $request)
     {
-        return response()->json(auth()->user()->getPermissionsViaRoles()->pluck('name'));
+        return response()->json($request->user());
     }
 }

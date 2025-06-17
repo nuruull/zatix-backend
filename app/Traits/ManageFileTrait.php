@@ -25,7 +25,10 @@ trait ManageFileTrait
 
     function deleteFile($path)
     {
-        if (Storage::disk('public')->exists($path)) {
+        // if (Storage::disk('public')->exists($path)) {
+        //     Storage::disk('public')->delete($path);
+        // }
+        if ($path && Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
         }
     }

@@ -84,20 +84,29 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('event-organizers')
         ->name('event-organizer.')
         ->group(function () {
-            Route::middleware(['permission:create-event-organizer'])->post('/create', [EventOrganizerController::class, 'store'])->name('store');
-            Route::middleware(['permission:update-event-organizer'])->put('/edit/{id}', [EventOrganizerController::class, 'update'])->name('update');
-            Route::middleware(['permission:delete-event-organizer'])->delete('/{id}', [EventOrganizerController::class, 'destroy'])->name('destroy');
-            Route::middleware(['permission:view-any-event-organizers'])->get('/', [EventOrganizerController::class, 'index'])->name('index');
-            Route::middleware(['permission:view-event-organizer'])->get('/{id}', [EventOrganizerController::class, 'show'])->name('show');
+            // Route::middleware(['permission:create-event-organizer'])->post('/create', [EventOrganizerController::class, 'store'])->name('store');
+            // Route::middleware(['permission:update-event-organizer'])->put('/edit/{id}', [EventOrganizerController::class, 'update'])->name('update');
+            // Route::middleware(['permission:delete-event-organizer'])->delete('/{id}', [EventOrganizerController::class, 'destroy'])->name('destroy');
+            // Route::middleware(['permission:view-any-event-organizers'])->get('/', [EventOrganizerController::class, 'index'])->name('index');
+            // Route::middleware(['permission:view-event-organizer'])->get('/{id}', [EventOrganizerController::class, 'show'])->name('show');
+            Route::post('/create', [EventOrganizerController::class, 'store'])->name('store');
+            Route::put('/edit/{id}', [EventOrganizerController::class, 'update'])->name('update');
+            Route::delete('/{id}', [EventOrganizerController::class, 'destroy'])->name('destroy');
+            Route::get('/', [EventOrganizerController::class, 'index'])->name('index');
+            Route::get('/{id}', [EventOrganizerController::class, 'show'])->name('show');
         });
 
     Route::prefix('documents')
         ->name('document.')
         ->group(function () {
-            Route::middleware(['permission:create-document'])->post('/create', [DocumentController::class, 'store'])->name('store');
-            Route::middleware(['permission:view-any-documents'])->get('/', [DocumentController::class, 'index'])->name('index');
-            Route::middleware(['permission:view-document'])->get('/{document}', [DocumentController::class, 'show'])->name('show');
-            Route::middleware(['permission:update-document-status'])->patch('/{document}/status', [DocumentController::class, 'updateStatus'])->name('updateStatus');
+            // Route::middleware(['permission:create-document'])->post('/create', [DocumentController::class, 'store'])->name('store');
+            // Route::middleware(['permission:view-any-documents'])->get('/', [DocumentController::class, 'index'])->name('index');
+            // Route::middleware(['permission:view-document'])->get('/{document}', [DocumentController::class, 'show'])->name('show');
+            // Route::middleware(['permission:update-document-status'])->patch('/{document}/status', [DocumentController::class, 'updateStatus'])->name('updateStatus');
+            Route::post('/create', [DocumentController::class, 'store'])->name('store');
+            Route::get('/', [DocumentController::class, 'index'])->name('index');
+            Route::get('/{document}', [DocumentController::class, 'show'])->name('show');
+            Route::patch('/{document}/status', [DocumentController::class, 'updateStatus'])->name('updateStatus');
         });
 
     Route::prefix('notifications')->name('notification.')->group(function () {
@@ -146,11 +155,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('carousels')
         ->name('carousels.')
         ->group(function () {
-            Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->middleware(['permission:view-any-carousels'])->name('get-carousel-list');
-            Route::post('/', [CarouselController::class, 'store'])->name('store')->middleware(['can:create-carousel']);
-            Route::get('/{id}', [CarouselController::class, 'show'])->name('show')->middleware(['can:view-carousel']);
-            Route::put('/{id}', [CarouselController::class, 'update'])->name('update')->middleware(['can:update-carousel']);
-            Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy')->middleware(['can:delete-carousel']);
+            Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->name('get-carousel-list');
+            Route::post('/', [CarouselController::class, 'store'])->name('store');
+            Route::get('/{id}', [CarouselController::class, 'show'])->name('show');
+            Route::put('/{id}', [CarouselController::class, 'update'])->name('update');
+            Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy');
         });
 
     //create endpoint for activity log

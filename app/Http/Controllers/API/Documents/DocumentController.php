@@ -67,7 +67,7 @@ class DocumentController extends BaseController
                 'status' => DocumentStatusEnum::PENDING,
             ]);
 
-            $superAdmins = User::role('super-admin')->get();
+            $superAdmins = User::role('super-admin', 'api')->get();
             if ($superAdmins->isNotEmpty()) {
                 Notification::send($superAdmins, new NewVerificationRequest($document));
             }
