@@ -36,6 +36,6 @@ class EventOrganizer extends Model
     }
 
     public function members() {
-        return $this->belongsToMany(User::class, 'event_organizer_users');
+        return $this->belongsToMany(User::class, 'event_organizer_users', 'eo_id', 'user_id');
     }
 }

@@ -15,6 +15,8 @@ return [
 
     'defaults' => [
         'guard' => 'api',
+        'permission' => \Spatie\Permission\Models\Permission::class,
+        'role' => \Spatie\Permission\Models\Role::class,
         'passwords' => 'users',
     ],
 
@@ -22,7 +24,7 @@ return [
     |--------------------------------------------------------------------------
     | Authentication Guards
     |--------------------------------------------------------------------------
-    |   
+    |
     | Next, you may define every authentication guard for your application.
     | Of course, a great default configuration has been defined for you
     | here which uses session storage and the Eloquent user provider.

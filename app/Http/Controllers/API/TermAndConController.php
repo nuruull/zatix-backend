@@ -112,4 +112,31 @@ class TermAndConController extends BaseController
             return $this->sendError('Failed to delete TnC', $th->getMessage(), 500);
         }
     }
+
+    public function getGeneralTnc()
+    {
+        try {
+            $tnc = TermAndCon::where('type', TncTypeEnum::GENERAL->value)->latest()->first();
+
+            if (!$tnc) {
+                return $this->sendError(
+                    'Terms and Conditions not found.',
+                    [],
+                    404
+                );
+            }
+
+            return $this->sendResponse(
+                $tnc,
+                'Terms and Conditions retrieved successfully'
+            );
+
+        } catch (\Exception $e) {
+            return $this->sendError(
+                'Failed to retrieve Terms and Conditions.',
+                $e->getMessage(),
+                500
+            );
+        }   
+    }
 }
