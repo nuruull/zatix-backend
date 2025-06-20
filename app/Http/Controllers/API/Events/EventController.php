@@ -54,7 +54,12 @@ class EventController extends BaseController
                 'end_time' => 'required|date_format:H:i',
                 'location' => 'required|string|max:255',
                 'contact_phone' => 'required|string|max:20',
-                'tnc_id' => 'required|exists:terms_and_cons,id',
+                'tnc_id' => [
+                    'required',
+                    Rule::exists('terms_and_cons', 'id')->where(function ($query) {
+                        $query->where('type', TncTypeEnum::EVENT->value);
+                    })
+                ],
                 'facilities' => 'nullable|array',
                 'facilities.*' => 'exists:facilities,id',
                 'tickets' => 'nullable|array',
@@ -116,12 +121,7 @@ class EventController extends BaseController
                     'location' => $validatedData['location'],
                     'status' => 'draft',
                     'contact_phone' => $validatedData['contact_phone'],
-                    'tnc_id' => [
-                        'required',
-                        Rule::exists('terms_and_cons', 'id')->where(function ($query) {
-                            $query->where('type', TncTypeEnum::EVENT->value);
-                        })
-                    ],
+                    'tnc_id' => $eventTnc->id,
                     'is_published' => false,
                     'is_public' => false,
                 ]);
