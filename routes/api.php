@@ -127,9 +127,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('tnc-events')
         ->name('tnc-event.')
+        ->middleware(['role:eo-owner'])
         ->group(function () {
-            Route::middleware(['permission:view-tnc-event'])->get('/', [EventTncController::class, 'show'])->name('show');
-            Route::middleware(['permission:accept-tnc-event'])->post('/accept', [EventTncController::class, 'agree'])->name('accept');
+            Route::get('/', [EventTncController::class, 'show'])->name('show');
+            Route::post('/accept', [EventTncController::class, 'agree'])->name('accept');
         });
 
     Route::prefix('events')

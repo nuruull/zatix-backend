@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -37,13 +38,22 @@ class StaffController extends BaseController
                 'request_data' => $request->all(),
             ]);
 
+            $allowedRoles = Role::where('guard_name', 'api')
+                ->whereIn('name', ['finance', 'crew', 'kasir'])
+                ->pluck('name')
+                ->all();
+
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
                 'password' => 'required|string|min:8|confirmed',
-                'role' => ['required', 'string', Rule::in(['finance', 'crew', 'kasir'])]
+                'role' => [
+                    'required',
+                    'string',
+                    Rule::in($allowedRoles)
+                ]
             ]);
-            
+
 
             if ($validator->fails()) {
                 Log::error('Staff creation validation failed', ['errors' => $validator->errors()]);
@@ -62,8 +72,18 @@ class StaffController extends BaseController
 
             $newStaff = User::create($staffData);
 
-            $newStaff->guard(['api'])->assignRole($validated['role']);
-            // dd($newStaff->id);
+            $newStaff->guard('api')->assignRole($validated['role']);
+
+            dd(
+                'Default Guard dari Config:',
+                config('auth.defaults.guard'),
+                'Guard yang Digunakan User:',
+                $newStaff->guard_name, // Ini akan menunjukkan guard default user
+                'Role yang akan diberikan:',
+                $validated['role']
+            );
+
+            // $newStaff->assignRole($validated['role']);
 
             $eventOrganizer->members()->attach($newStaff->id);
 
