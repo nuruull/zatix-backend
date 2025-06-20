@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API\Events;
 
 use Throwable;
 use App\Models\User;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\BaseController;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
@@ -20,6 +22,8 @@ class StaffController extends BaseController
     public function store(Request $request)
     {
         try {
+            DB::beginTransaction();
+
             $eoOwner = Auth::user();
             $eventOrganizer = $eoOwner->eventOrganizer;
 
@@ -39,14 +43,13 @@ class StaffController extends BaseController
             ]);
 
             $allowedRoles = Role::where('guard_name', 'api')
-                ->whereIn('name', ['finance', 'crew', 'kasir'])
+                ->whereIn('name', ['finance', 'crew', 'cashier'])
                 ->pluck('name')
                 ->all();
 
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
-                'password' => 'required|string|min:8|confirmed',
                 'role' => [
                     'required',
                     'string',
@@ -64,28 +67,61 @@ class StaffController extends BaseController
 
             $validated = $validator->validated();
 
+            $temporaryPassword = Str::random(40);
+
             $staffData = [
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
+                'password' => Hash::make($temporaryPassword),
+                'email_verified_at' => now(),
             ];
 
             $newStaff = User::create($staffData);
 
-            $newStaff->guard('api')->assignRole($validated['role']);
+            $role = Role::where('name', $validated['role'])
+                ->where('guard_name', 'api')
+                ->first();
 
-            dd(
-                'Default Guard dari Config:',
-                config('auth.defaults.guard'),
-                'Guard yang Digunakan User:',
-                $newStaff->guard_name, // Ini akan menunjukkan guard default user
-                'Role yang akan diberikan:',
-                $validated['role']
-            );
+            if (!$role) {
+                DB::rollback();
+                Log::error('Role not found with api guard', [
+                    'role_name' => $validated['role'],
+                    'available_roles' => $allowedRoles
+                ]);
+                return $this->sendError(
+                    'Role configuration error.',
+                    ['error' => 'The specified role is not properly configured for API guard.'],
+                    500
+                );
+            }
 
-            // $newStaff->assignRole($validated['role']);
+            $newStaff->assignRole($role);
+
+            // Verifikasi guard setelah assign role
+            $assignedRole = $newStaff->roles()
+                ->where('name', $validated['role'])
+                ->first();
+
+            if (!$assignedRole || $assignedRole->guard_name !== 'api') {
+                DB::rollback();
+                Log::error('Role assignment failed - incorrect guard', [
+                    'user_id' => $newStaff->id,
+                    'expected_guard' => 'api',
+                    'actual_guard' => $assignedRole ? $assignedRole->guard_name : 'null',
+                    'role_name' => $validated['role']
+                ]);
+                return $this->sendError(
+                    'Role assignment failed.',
+                    ['error' => 'Role was not assigned with the correct guard permissions.'],
+                    500
+                );
+            }
 
             $eventOrganizer->members()->attach($newStaff->id);
+
+            Password::broker()->sendResetLink(
+                ['email' => $newStaff->email]
+            );
 
             DB::commit();
 
@@ -93,9 +129,9 @@ class StaffController extends BaseController
                 [
                     'name' => $newStaff->name,
                     'email' => $newStaff->email,
-                    'role' => $newStaff->role,
+                    'role' => $newStaff->getRoleNames()->first(),
                 ],
-                'Staff created successfully',
+                'Staff member created successfully. An email has been sent to them to set up their password.',
                 201
             );
         } catch (HttpResponseException $e) {

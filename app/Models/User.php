@@ -27,6 +27,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'email_verified_at'
     ];
 
     /**
@@ -88,6 +89,6 @@ class User extends Authenticatable
     }
 
     public function teams() {
-        return $this->belongsToMany(EventOrganizer::class, 'event_organizer_user');
+        return $this->belongsToMany(EventOrganizer::class, 'event_organizer_user', 'eo_id', 'user_id');
     }
 }

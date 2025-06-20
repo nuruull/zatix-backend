@@ -20,18 +20,25 @@ class EventTncController extends BaseController
             );
         }
 
+        $hasAcceptedGenerally = auth()->user()->tncStatuses()
+            ->where('tnc_id', $eventTnc->id)
+            ->whereNull('event_id') // Hanya cari persetujuan yang belum terikat ke event
+            ->exists();
+
+        // Struktur response yang lebih baik
+        $response = [
+            'tnc' => $eventTnc,
+            'already_accepted' => $hasAcceptedGenerally,
+        ];
+
         return $this->sendResponse(
-            [
-                $eventTnc,
-                'already_accepted' => auth()->user()->tncStatuses()
-                    ->where('tnc_id', $eventTnc->id)
-                    ->exists()
-            ],
+            $response,
             'Terms and conditions data retrieved successfully'
         );
     }
 
-    public function agree(Request $request) {
+    public function agree(Request $request)
+    {
         $eventTnc = TermAndCon::where('type', TncTypeEnum::EVENT->value)->latest()->first();
 
         if (!$eventTnc) {

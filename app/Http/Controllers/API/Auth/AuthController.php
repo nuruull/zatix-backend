@@ -52,6 +52,7 @@ class AuthController extends BaseController
             ]);
 
             $tnc = TermAndCon::where('type', 'general')->latest()->first();
+            // dd($tnc);
             if (!$tnc) {
                 throw new Exception('Terms and Conditions not configured for registration.');
             }

@@ -7,8 +7,9 @@ use App\Models\Event;
 use App\Models\TncStatus;
 use App\Models\TermAndCon;
 use Illuminate\Http\Request;
-use App\Traits\ManageFileTrait;
 use App\Enum\Type\TncTypeEnum;
+use App\Traits\ManageFileTrait;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Enum\Status\EventStatusEnum;
@@ -76,11 +77,11 @@ class EventController extends BaseController
                     403
                 );
             }
-            $tncFromRequest = $validatedData['tnc_id'];
 
-            $eventTnc = TermAndCon::where('id', $tncFromRequest)
+            $eventTnc = TermAndCon::where('id', $validatedData['tnc_id'])
                 ->where('type', TncTypeEnum::EVENT->value)
                 ->first();
+
 
             if (!$eventTnc) {
                 return $this->sendError(
@@ -92,6 +93,7 @@ class EventController extends BaseController
 
             $hasAcceptedTnc = $user->tncStatuses()
                 ->where('tnc_id', $eventTnc->id)
+                ->whereNull('event_id')
                 ->exists();
 
             if (!$hasAcceptedTnc) {
@@ -114,8 +116,12 @@ class EventController extends BaseController
                     'location' => $validatedData['location'],
                     'status' => 'draft',
                     'contact_phone' => $validatedData['contact_phone'],
-                    'tnc_id' => $eventTnc->id,
-                    // 'is_accepted' => true,
+                    'tnc_id' => [
+                        'required',
+                        Rule::exists('terms_and_cons', 'id')->where(function ($query) {
+                            $query->where('type', TncTypeEnum::EVENT->value);
+                        })
+                    ],
                     'is_published' => false,
                     'is_public' => false,
                 ]);
@@ -130,17 +136,10 @@ class EventController extends BaseController
                     }
                 }
 
-                TncStatus::updateOrCreate(
-                    [
-                        'user_id' => $user->id,
-                        'tnc_id' => $eventTnc->id,
-                        'event_id' => $createdEvent->id
-                    ],
-                    [
-                        'accepted_at' => now(),
-                        'event_id' => $createdEvent->id
-                    ]
-                );
+                $user->tncStatuses()
+                    ->where('tnc_id', $eventTnc->id)
+                    ->whereNull('event_id')
+                    ->update(['event_id' => $createdEvent->id]);
 
                 return $createdEvent->load(['facilities', 'tickets']);
             });
