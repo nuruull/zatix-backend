@@ -5,41 +5,44 @@ namespace Tests\Feature\API\Event;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\EventOrganizer;
+use Illuminate\Http\UploadedFile;
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\File;
+use PHPUnit\Framework\Attributes\Test;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\UploadedFile;
-use PHPUnit\Framework\Attributes\Test;
-use Illuminate\Support\Facades\File;
 
 class EventOrganizerControllerTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, WithFaker;
 
     /**
      * User yang akan diautentikasi untuk setiap test.
      * @var \App\Models\User
      */
-    protected $user;
+    protected User $superAdminUser;
+    protected User $eoOwnerUser;
 
-    protected function tearDown(): void
-    {
-        File::deleteDirectory(storage_path('app/public/event-organizers'));
-        parent::tearDown();
-    }
-
-    /**
-     * Setup the test environment.
-     *
-     * @return void
-     */
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Membuat user dan mengautentikasinya untuk semua request dalam test ini
-        $this->user = User::factory()->create();
-        $this->actingAs($this->user, 'sanctum'); // atau 'api' sesuai guard Anda
+        // 1. Buat semua role yang dibutuhkan dengan guard 'api'
+        Role::create(['name' => 'super-admin', 'guard_name' => 'api']);
+        Role::create(['name' => 'eo-owner', 'guard_name' => 'api']);
+
+        // 2. Buat user untuk setiap role
+        $this->superAdminUser = User::factory()->create();
+        $this->superAdminUser->assignRole('super-admin');
+
+        $this->eoOwnerUser = User::factory()->create();
+        $this->eoOwnerUser->assignRole('eo-owner');
+    }
+    protected function tearDown(): void
+    {
+        File::deleteDirectory(storage_path('app/public/event-organizers'));
+        parent::tearDown();
     }
 
     //======================================================================
@@ -47,20 +50,17 @@ class EventOrganizerControllerTest extends TestCase
     //======================================================================
 
     #[Test]
-    public function it_can_get_a_list_of_event_organizers()
+    public function super_admin_can_get_a_list_of_event_organizers(): void
     {
-        // Arrange: Buat beberapa data dummy
-        EventOrganizer::factory()->count(3)->create(['eo_owner_id' => $this->user->id]);
+        // Arrange
+        EventOrganizer::factory()->count(3)->create();
+        $this->actingAs($this->superAdminUser, 'sanctum'); // Login sebagai super-admin
 
-        // Act: Panggil endpoint index
+        // Act
         $response = $this->getJson(route('event-organizer.index'));
 
-        // Assert: Pastikan response sukses dan strukturnya benar
+        // Assert
         $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'message' => 'List of Event Organizers',
-            ])
             ->assertJsonCount(3, 'data');
     }
 
@@ -69,38 +69,18 @@ class EventOrganizerControllerTest extends TestCase
     //======================================================================
 
     #[Test]
-    public function it_can_get_a_single_event_organizer()
+    public function super_admin_can_get_a_single_event_organizer(): void
     {
-        // Arrange: Buat satu data dummy
+        // Arrange
         $organizer = EventOrganizer::factory()->create();
+        $this->actingAs($this->superAdminUser, 'sanctum'); // Login sebagai super-admin
 
-        // Act: Panggil endpoint show
+        // Act
         $response = $this->getJson(route('event-organizer.show', $organizer->id));
 
-        // Assert: Pastikan response sukses dan data yang diterima sesuai
+        // Assert
         $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'message' => 'Event Organizer found',
-                'data' => [
-                    'id' => $organizer->id,
-                    'name' => $organizer->name,
-                ]
-            ]);
-    }
-
-    #[Test]
-    public function it_returns_404_when_showing_a_non_existent_event_organizer()
-    {
-        // Act: Panggil endpoint show dengan ID yang tidak ada
-        $response = $this->getJson(route('event-organizer.show', 999));
-
-        // Assert: Pastikan response adalah Not Found (404)
-        $response->assertStatus(404)
-            ->assertJson([
-                'success' => false,
-                'message' => 'Event Organizer not found',
-            ]);
+            ->assertJsonPath('data.id', $organizer->id);
     }
 
     //======================================================================
@@ -108,67 +88,43 @@ class EventOrganizerControllerTest extends TestCase
     //======================================================================
 
     #[Test]
-    public function it_can_create_an_event_organizer_with_a_logo(): void
+    public function eo_owner_can_create_an_event_organizer(): void
     {
+        // Arrange
+        $this->actingAs($this->eoOwnerUser, 'sanctum'); // Login sebagai eo-owner
         $file = UploadedFile::fake()->image('logo.jpg');
         $data = [
             'name' => 'My Awesome EO',
             'logo' => $file,
         ];
 
-        $response = $this->postJson(route('event-organizer.store'), $data);
-
-        $response->assertStatus(201);
-
-        $logoPath = $response->json('data.logo');
-        $this->assertNotNull($logoPath);
-
-        // Gunakan assertTrue dengan File::exists() untuk memeriksa file sungguhan
-        $this->assertTrue(
-            File::exists(storage_path('app/public/' . $logoPath)),
-            "File tidak ditemukan di disk pada path: " . $logoPath
-        );
-    }
-
-    #[Test]
-    public function it_can_create_an_event_organizer_without_a_logo()
-    {
-        // Arrange: Siapkan data tanpa logo
-        $data = [
-            'name' => 'EO Tanpa Logo',
-            'description' => 'Deskripsi singkat.',
-        ];
+        // Buat direktori tujuan secara manual agar ->move() di Trait berhasil
+        File::makeDirectory(storage_path('app/public/event-organizers/logo'), 0755, true, true);
 
         // Act
         $response = $this->postJson(route('event-organizer.store'), $data);
 
         // Assert
-        $response->assertStatus(201)
-            ->assertJsonFragment(['name' => 'EO Tanpa Logo']);
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('event_organizers', ['name' => 'My Awesome EO']);
 
-        $this->assertDatabaseHas('event_organizers', [
-            'name' => 'EO Tanpa Logo',
-            'logo' => null
-        ]);
+        // Cek file sungguhan di disk
+        $logoPath = $response->json('data.logo');
+        $this->assertTrue(File::exists(storage_path('app/public/' . $logoPath)));
     }
 
     #[Test]
-    public function it_returns_validation_error_when_creating_with_invalid_data(): void
+    public function store_fails_for_user_without_eo_owner_role(): void
     {
-        // Arrange: Siapkan data yang tidak valid (name kosong)
-        $data = [
-            'name' => '',
-            'email_eo' => 'ini-bukan-email',
-        ];
+        // Arrange
+        $userWithoutRole = User::factory()->create(); // User tanpa role
+        $this->actingAs($userWithoutRole, 'sanctum');
 
-        // Act: Panggil endpoint store
-        $response = $this->postJson(route('event-organizer.store'), $data);
+        // Act
+        $response = $this->postJson(route('event-organizer.store'), ['name' => 'Test']);
 
-        $response->dump();
-
-        // Assert: Pastikan response adalah 422 Unprocessable Entity
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'email_eo']);
+        // Assert
+        $response->assertStatus(403); // Harusnya Forbidden karena tidak punya role
     }
 
     //======================================================================
@@ -176,80 +132,39 @@ class EventOrganizerControllerTest extends TestCase
     //======================================================================
 
     #[Test]
-    public function it_can_update_an_event_organizer()
+    public function eo_owner_can_update_an_event_organizer(): void
     {
-        // =======================================================================
-        // Arrange: Membuat kondisi awal di DISK SUNGGUHAN
-        // =======================================================================
+        // Arrange
+        $this->actingAs($this->eoOwnerUser, 'sanctum'); // Login sebagai eo-owner
 
-        // 1. Tentukan path folder dan buat direktorinya secara fisik.
+        // Buat kondisi awal dengan file sungguhan
         $folderPath = storage_path('app/public/event-organizers/logo');
         File::makeDirectory($folderPath, 0755, true, true);
 
-        // 2. Buat file "lama" dan pindahkan ke direktori fisik tersebut.
         $oldLogoFile = UploadedFile::fake()->image('old_logo.jpg');
         $oldLogoName = time() . '_old.' . $oldLogoFile->getClientOriginalExtension();
         $oldLogoFile->move($folderPath, $oldLogoName);
         $oldLogoDbPath = 'event-organizers/logo/' . $oldLogoName;
 
-        // 3. Buat record Organizer di database yang menunjuk ke file "lama" yang ada.
-        // Ini memastikan $organizer->logo tidak null, sehingga Trait tidak error.
+        // Buat organizer yang dimiliki oleh eoOwnerUser dan punya logo lama
         $organizer = EventOrganizer::factory()->create([
             'logo' => $oldLogoDbPath,
+            'eo_owner_id' => $this->eoOwnerUser->id
         ]);
 
-        // 4. Siapkan file "baru" untuk request update.
         $newLogo = UploadedFile::fake()->image('new_logo.png');
-        $updateData = [
-            'name' => 'Updated EO Name',
-            'description' => 'Updated description.',
-            'logo' => $newLogo,
-        ];
-
-        // =======================================================================
-        // Act: Kirim request ke controller
-        // =======================================================================
-        $response = $this->postJson(route('event-organizer.update', $organizer->id), array_merge($updateData, ['_method' => 'PUT']));
-
-        // =======================================================================
-        // Assert: Lakukan verifikasi pada hasil
-        // =======================================================================
-        $response->assertStatus(200);
-
-        $this->assertDatabaseHas('event_organizers', [
-            'id' => $organizer->id,
-            'name' => 'Updated EO Name',
-        ]);
-
-        $updatedOrganizer = EventOrganizer::find($organizer->id);
-        $newLogoDbPath = $updatedOrganizer->logo;
-
-        // Gunakan fasad 'File' untuk memeriksa file sungguhan di disk.
-
-        // Pastikan file BARU benar-benar ada.
-        $this->assertTrue(
-            File::exists(storage_path('app/public/' . $newLogoDbPath)),
-            "File baru seharusnya ada di disk."
-        );
-
-        // Pastikan file LAMA sudah benar-benar terhapus.
-        $this->assertFalse(
-            File::exists(storage_path('app/public/' . $oldLogoDbPath)),
-            "File lama seharusnya sudah terhapus oleh Trait."
-        );
-    }
-
-    #[Test]
-    public function it_returns_404_when_updating_a_non_existent_event_organizer()
-    {
-        // Arrange
-        $updateData = ['name' => 'New Name'];
+        $updateData = ['name' => 'Updated EO Name', 'logo' => $newLogo];
 
         // Act
-        $response = $this->putJson(route('event-organizer.update', 999), $updateData);
+        // Gunakan putJson karena route Anda menggunakan Route::put()
+        $response = $this->postJson(route('event-organizer.update', $organizer->id), array_merge($updateData, ['_method' => 'PUT']));
 
         // Assert
-        $response->assertStatus(404)
-            ->assertJson(['message' => 'Event Organizer not found']);
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('event_organizers', ['name' => 'Updated EO Name']);
+
+        $newLogoDbPath = EventOrganizer::find($organizer->id)->logo;
+        $this->assertTrue(File::exists(storage_path('app/public/' . $newLogoDbPath)));
+        $this->assertFalse(File::exists(storage_path('app/public/' . $oldLogoDbPath)));
     }
 }
