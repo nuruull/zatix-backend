@@ -9,7 +9,6 @@ use Illuminate\Http\UploadedFile;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
