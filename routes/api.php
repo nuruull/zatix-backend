@@ -138,12 +138,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('events')
         ->name('event.')
+        ->middleware(['role:eo-owner'])
         ->group(function () {
-            Route::middleware(['permission:create-event'])->post('/create', [EventController::class, 'store'])->name('create');
-            Route::middleware(['permission:update-event'])->put('/update/{id}', [EventController::class, 'update'])->name('update');
-            Route::middleware(['permission:delete-event'])->delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
-            Route::middleware(['permission:publish-event'])->post('/{id}/publish', [EventController::class, 'publish']);
-
+            // Route::middleware(['permission:create-event'])->post('/create', [EventController::class, 'store'])->name('create');
+            // Route::middleware(['permission:update-event'])->put('/update/{id}', [EventController::class, 'update'])->name('update');
+            // Route::middleware(['permission:delete-event'])->delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
+            // Route::middleware(['permission:publish-event'])->post('/{id}/publish', [EventController::class, 'publish']);
+            Route::post('/create', [EventController::class, 'store'])->name('create');
+            Route::put('/update/{id}', [EventController::class, 'update'])->name('update');
+            Route::delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/publish', [EventController::class, 'publish']);
         });
 
     Route::prefix('facilities')
