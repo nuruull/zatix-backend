@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\Auth\AuthController;
 use App\Http\Controllers\API\TermAndConController;
 use App\Http\Controllers\API\DemoRequestController;
+use App\Http\Controllers\API\Events\StaffController;
 use App\Http\Controllers\API\Events\EventController;
 use App\Http\Controllers\API\Events\EventTncController;
 use App\Http\Controllers\API\Log\ActivityLogController;
@@ -122,6 +123,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('markAsRead');
     });
 
+    Route::middleware(['role:eo-owner'])->post('/create-staffs-event', [StaffController::class, 'store'])->name('staffs.store');
+
     Route::prefix('tnc-events')
         ->name('tnc-event.')
         ->group(function () {
@@ -151,12 +154,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('tnc')
         ->name('tnc.')
+        ->middleware(['role:super-admin'])
         ->group(function () {
-            Route::middleware(['permission:view-any-tnc'])->get('/', [TermAndConController::class, 'index'])->name('index');
-            Route::middleware(['permission:view-latest-tnc'])->get('/{type}/latest', [TermAndConController::class, 'latestByType'])->name('latest');
-            Route::middleware(['permission:create-tnc'])->post('/', [TermAndConController::class, 'store'])->name('store');
-            Route::middleware(['permission:update-tnc'])->put('/{id}', [TermAndConController::class, 'update'])->name('update');
-            Route::middleware(['permission:delete-tnc'])->delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
+            // Route::middleware(['permission:view-any-tnc'])->get('/', [TermAndConController::class, 'index'])->name('index');
+            // Route::middleware(['permission:view-latest-tnc'])->get('/{type}/latest', [TermAndConController::class, 'latestByType'])->name('latest');
+            // Route::middleware(['permission:create-tnc'])->post('/', [TermAndConController::class, 'store'])->name('store');
+            // Route::middleware(['permission:update-tnc'])->put('/{id}', [TermAndConController::class, 'update'])->name('update');
+            // Route::middleware(['permission:delete-tnc'])->delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
+            Route::get('/', [TermAndConController::class, 'index'])->name('index');
+            Route::get('/{type}/latest', [TermAndConController::class, 'latestByType'])->name('latest');
+            Route::post('/', [TermAndConController::class, 'store'])->name('store');
+            Route::put('/{id}', [TermAndConController::class, 'update'])->name('update');
+            Route::delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
         });
 
     //commit carousel api to git

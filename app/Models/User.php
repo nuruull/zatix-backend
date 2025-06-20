@@ -86,4 +86,8 @@ class User extends Authenticatable
     {
         return $this->morphMany(Document::class, 'documentableq');
     }
+
+    public function teams() {
+        return $this->belongsToMany(EventOrganizer::class, 'event_organizer_user');
+    }
 }

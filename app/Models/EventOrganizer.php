@@ -34,4 +34,8 @@ class EventOrganizer extends Model
     {
         return $this->morphMany(Document::class, 'documentable');
     }
+
+    public function members() {
+        return $this->belongsToMany(User::class, 'event_organizer_users');
+    }
 }
