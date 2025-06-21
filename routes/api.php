@@ -16,6 +16,7 @@ use App\Http\Controllers\API\Facilities\FacilityController;
 use App\Http\Controllers\API\General\NotificationController;
 use App\Http\Controllers\API\Events\EventOrganizerController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
+use Illuminate\Support\Facades\Auth;
 
 
 /*
@@ -124,7 +125,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('markAsRead');
     });
 
-    Route::middleware(['role:eo-owner'])->post('/create-staffs-event', [StaffController::class, 'store'])->name('staffs.store');
+    Route::prefix('staff')->middleware(['role:eo-owner'])->group(function () {
+        Route::get('/', [StaffController::class, 'index']);
+        Route::post('/create', [StaffController::class, 'store']);
+        Route::put('/{staff}', [StaffController::class, 'update']);
+        Route::delete('/{staff}', [StaffController::class, 'destroy']);
+    });
 
     Route::prefix('tnc-events')
         ->name('tnc-event.')
@@ -201,3 +207,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 //         'can_publish' => $user->can('view-any-carousels'),
 //     ];
 // })->middleware('auth:sanctum');
+
+Route::get('/cek-phpinfo', function () {
+    phpinfo();
+});
