@@ -13,12 +13,31 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\BaseController;
+use App\Notifications\WelcomeAndSetPasswordNotification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
 class StaffController extends BaseController
 {
+    public function index()
+    {
+        try {
+            $eventOrganizer = Auth::user()->eventOrganizer;
+
+            if (!$eventOrganizer) {
+                return $this->sendError("Event Organizer profile not found.", [], 404);
+            }
+
+            $staffs = $eventOrganizer->members()->with('roles')->paginate(15);
+
+            return $this->sendResponse($staffs, 'Staff retrieved successfully.');
+        } catch (Throwable $e) {
+            Log::error('Failed to retrieve staff: ' . $e->getMessage(), ['exception' => $e]);
+            return $this->sendError('Failed to retrieve staff.', ['error' => 'An unexpected server error occurred.'], 500);
+        }
+    }
+
     public function store(Request $request)
     {
         try {
@@ -119,9 +138,9 @@ class StaffController extends BaseController
 
             $eventOrganizer->members()->attach($newStaff->id);
 
-            Password::broker()->sendResetLink(
-                ['email' => $newStaff->email]
-            );
+            $token = Password::broker()->createToken($newStaff);
+
+            $newStaff->notify(new WelcomeAndSetPasswordNotification($token));
 
             DB::commit();
 
@@ -151,6 +170,69 @@ class StaffController extends BaseController
                 ['error' => 'An unexpected server error occurred.'],
                 500
             );
+        }
+    }
+
+    public function update(Request $request, User $staff)
+    {
+        try {
+            $eventOrganizer = Auth::user()->eventOrganizer;
+
+            if (!$eventOrganizer || !$eventOrganizer->members->contains($staff)) {
+                return $this->sendError('Unauthorized. You can only edit your own staff.', [], 403);
+            }
+
+            $allowedRoles = Role::where('guard_name', 'api')
+                ->whereIn('name', ['finance', 'crew', 'cashier'])
+                ->pluck('name')->all();
+
+            $validator = Validator::make($request->all(), [
+                'name' => 'sometimes|required|string|max:255',
+                'role' => ['sometimes', 'required', 'string', Rule::in($allowedRoles)]
+            ]);
+
+            if ($validator->fails()) {
+                return $this->sendError('Validation failed', $validator->errors(), 422);
+            }
+
+            $validated = $validator->validated();
+
+            $staff->update($validated);
+
+            if (isset($validated['role'])) {
+                $staff->syncRoles([$validated['role']]);
+            }
+
+            return $this->sendResponse($staff->fresh()->load('roles'), 'Staff updated successfully.');
+        } catch (Throwable $e) {
+            Log::error('Failed to update staff: ' . $e->getMessage(), ['exception' => $e]);
+            return $this->sendError('Failed to update staff.', ['error' => 'An unexpected server error occurred.'], 500);
+        }
+    }
+
+    public function destroy(User $staff)
+    {
+        try {
+            $eventOrganizer = Auth::user()->eventOrganizer;
+
+            if (!$eventOrganizer || !$eventOrganizer->members->contains($staff)) {
+                return $this->sendError('Unauthorized. You can only remove your own staff.', [], 403);
+            }
+
+            $eventOrganizer->members()->detach($staff);
+
+            //Hapus juga rolenya agar ia tidak lagi punya hak akses staff
+            $staff->syncRoles([]);
+
+            return $this->sendResponse(
+                [],
+                'Staff removed from the team successfully.');
+        } catch (Throwable $e) {
+            Log::error('Failed to remove staff: ' . $e->getMessage(), ['exception' => $e]);
+            return $this->sendError(
+                'Failed to remove staff.',
+                ['error' => 'An unexpected server error occurred.'],
+                500);
         }
     }
 }
