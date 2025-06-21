@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\CustomToken;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
