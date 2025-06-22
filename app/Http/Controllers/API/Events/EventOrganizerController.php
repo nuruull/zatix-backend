@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers\API\Events;
 
-use App\Traits\ManageFileTrait;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use App\Models\EventOrganizer;
+use Workbench\App\Models\User;
+use App\Traits\ManageFileTrait;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use App\Enum\Type\OrganizerTypeEnum;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BaseController;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\NewVerificationRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class EventOrganizerController extends BaseController
@@ -43,21 +49,14 @@ class EventOrganizerController extends BaseController
     public function store(Request $request)
     {
         try {
-            // Debug: Log all request data
-            \Log::info('Store request received', [
-                'all_data' => $request->all(),
-                'files' => $request->files->all(),
-                'has_logo' => $request->hasFile('logo'),
-                'content_type' => $request->header('Content-Type'),
-            ]);
-
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
+                'organizer_type' => ['required', 'string', Rule::in(['individual', 'company'])],
                 'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'description' => 'nullable|string',
                 'email_eo' => 'nullable|email',
-                'phone_no_eo' => 'nullable|string|max:20',
-                'address_eo' => 'nullable|string',
+                'phone_no_eo' => 'required|string|max:20',
+                'address_eo' => 'required|string|max:1000',
             ]);
 
             if ($validator->fails()) {
@@ -69,6 +68,11 @@ class EventOrganizerController extends BaseController
                         422
                     )
                 );
+            }
+
+            $user = Auth::user();
+            if ($user->eventOrganizer()->exists()) {
+                return $this->sendError('You already have an Event Organizer profile.', [], 409);
             }
 
             DB::beginTransaction();
@@ -91,10 +95,10 @@ class EventOrganizerController extends BaseController
                 201
             );
         } catch (HttpResponseException $e) {
+            DB::rollBack();
             throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
-
             \Log::error('Failed to create event organizer: ' . $e->getMessage(), [
                 'exception' => $e,
                 'trace' => $e->getTraceAsString(),
@@ -114,11 +118,15 @@ class EventOrganizerController extends BaseController
         try {
             $organizer = EventOrganizer::findOrFail($id);
 
+            if (Auth::id() !== $organizer->eo_owner_id) {
+                return $this->sendError('Unauthorized', [], 403);
+            }
+
             $validator = Validator::make($request->all(), [
                 'name' => 'sometimes|required|string|max:255',
                 'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'description' => 'nullable|string',
-                'email_eo' => 'nullable|email',
+                'email_eo' => ['nullable', 'email', Rule::unique('event_organizers')->ignore($organizer->id)],
                 'phone_no_eo' => 'nullable|string|max:20',
                 'address_eo' => 'nullable|string',
             ]);
