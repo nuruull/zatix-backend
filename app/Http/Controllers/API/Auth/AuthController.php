@@ -90,8 +90,16 @@ class AuthController extends BaseController
                 }
                 DB::commit();
 
+                $user->load('roles');
+
                 // --- BLOK KODE UNTUK TESTING ---
-                $responseData = ['email' => $user->email];
+                $responseData = [
+                    'user' => [
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'roles' => $user->getRoleNames(), // BARU: Menambahkan roles ke response
+                    ]
+                ];
                 if (app()->isLocal()) {
                     $responseData['otp_code_for_testing'] = $otp->code;
                 }
@@ -104,7 +112,9 @@ class AuthController extends BaseController
                 );
             }
             return $this->sendResponse(
-                ['user' => $user],
+                [
+                    'user' => $user,
+                ],
                 'This email is already registered and verified. Please login',
                 409
             );
@@ -272,13 +282,22 @@ class AuthController extends BaseController
             }
 
             $token = $user->createToken('auth_token ' . $user->email)->plainTextToken;
+            $responseData = [
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'email_verified_at' => $user->email_verified_at,
+                    'roles' => $user->getRoleNames(),
+                    'created_at' => $user->created_at,
+                    'updated_at'=> $user->updated_at
+                ],
+            ];
 
             return $this->sendResponse(
-                [
-                    'access_token' => $token,
-                    'token_type' => 'Bearer',
-                    'user' => $user->makeHidden('password'),
-                ],
+                $responseData,
                 'Login successfully'
             );
         } catch (ValidationException $exception) {
