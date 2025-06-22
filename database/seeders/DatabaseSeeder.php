@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             TermAndConSeeder::class,
             EventOrganizerSeeder::class,
             DocumentSeeder::class,
+            EventSeeder::class,
         ]);
     }
 }
