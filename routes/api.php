@@ -89,12 +89,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->group(function () {
             Route::middleware(['role:super-admin'])->group(function () {
                 Route::get('/', [EventOrganizerController::class, 'index'])->name('index');
-                Route::get('/{id}', [EventOrganizerController::class, 'show'])->name('show');
+                Route::get('/{organizer}', [EventOrganizerController::class, 'show'])->name('show');
             });
             Route::middleware(['role:eo-owner'])->group(function () {
-                Route::post('/create', [EventOrganizerController::class, 'store'])->name('store');
-                Route::put('/edit/{id}', [EventOrganizerController::class, 'update'])->name('update');
-                Route::delete('/{id}', [EventOrganizerController::class, 'destroy'])->name('destroy');
+                Route::post('/', [EventOrganizerController::class, 'store'])->name('store');
+                Route::put('/{organizer}', [EventOrganizerController::class, 'update'])->name('update');
             });
             // Route::middleware(['permission:create-event-organizer'])->post('/create', [EventOrganizerController::class, 'store'])->name('store');
             // Route::middleware(['permission:update-event-organizer'])->put('/edit/{id}', [EventOrganizerController::class, 'update'])->name('update');
@@ -112,7 +111,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
                 Route::patch('/{document}/status', [DocumentController::class, 'updateStatus'])->name('updateStatus');
             });
             Route::middleware(['role:eo-owner'])->group(function () {
-                Route::post('/create', [DocumentController::class, 'store'])->name('store');
+                Route::post('/', [DocumentController::class, 'store'])->name('store');
             });
             // Route::middleware(['permission:create-document'])->post('/create', [DocumentController::class, 'store'])->name('store');
             // Route::middleware(['permission:view-any-documents'])->get('/', [DocumentController::class, 'index'])->name('index');

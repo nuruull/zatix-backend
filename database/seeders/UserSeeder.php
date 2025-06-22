@@ -27,6 +27,12 @@ class UserSeeder extends Seeder
                 'email_verified_at' => '2025-01-01 00:00:00',
             ),
             array(
+                'name' => 'EO Owner 2',
+                'email' => 'eoowner2@zatix.com',
+                'password' => 'eoowner123',
+                'email_verified_at' => '2025-01-01 00:00:00',
+            ),
+            array(
                 'name' => 'Crew',
                 'email' => 'crew@zatix.com',
                 'password' => 'crew123',
@@ -53,12 +59,6 @@ class UserSeeder extends Seeder
             array(
                 'name' => 'Customer 2',
                 'email' => 'customer2@zatix.com',
-                'password' => 'customer123',
-                'email_verified_at' => '2025-01-01 00:00:00',
-            ),
-            array(
-                'name' => 'Customer 3',
-                'email' => 'customer3@zatix.com',
                 'password' => 'customer123',
                 'email_verified_at' => '2025-01-01 00:00:00',
             ),
