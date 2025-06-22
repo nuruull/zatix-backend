@@ -35,6 +35,19 @@ class EventOrganizer extends Model
         return count(array_intersect($requiredDocs, $verifiedDocs->all())) === count($requiredDocs);
     }
 
+    public function hasUploadedRequiredDocuments(): bool
+    {
+        $requiredDocs = ($this->organizer_type === OrganizerTypeEnum::INDIVIDUAL)
+            ? ['ktp']
+            : ['npwp', 'nib'];
+
+        $uploadedDocs = $this->documents()->pluck('type');
+
+        $missingDocs = array_diff($requiredDocs, $uploadedDocs->all());
+
+        return empty($missingDocs);
+    }
+
     //create log acativity for event organizer model
     public function getActivitylogOptions(): LogOptions
     {
@@ -48,6 +61,11 @@ class EventOrganizer extends Model
     public function eo_owner()
     {
         return $this->belongsTo(User::class, 'eo_owner_id');
+    }
+
+    public function events()
+    {
+        return $this->hasMany(Event::class, 'eo_id');
     }
 
     public function documents(): MorphMany

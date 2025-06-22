@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use App\Models\Event;
 use App\Models\TncStatus;
 use App\Models\TermAndCon;
+use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
 use App\Enum\Type\TncTypeEnum;
 use App\Traits\ManageFileTrait;
@@ -26,19 +27,20 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class EventController extends BaseController
 {
     use ManageFileTrait;
-    public function index()
+    public function index(Request $request)
     {
-        $events = Event::with(['facilities', 'tickets'])->get();
-        return response()->json($events);
+        $events = Event::with(['facilities', 'tickets'])
+            ->where('is_published', true)
+            ->where('is_public', true)
+            ->latest()
+            ->paginate($request->input('per_page', 15));
+        return $this->sendResponse($events, 'Events retrieved successfully.');
     }
 
-    public function show($id)
+    public function show(Event $event)
     {
-        $event = Event::with(['facilities', 'tickets'])->find($id);
-        if (!$event) {
-            return response()->json(['message' => 'Event not found'], 404);
-        }
-        return response()->json($event);
+        $event->load(['facilities', 'tickets', 'eventOrganizer']);
+        return $this->sendResponse($event, 'Event retrieved successfully.');
     }
 
     public function store(Request $request)
@@ -73,20 +75,10 @@ class EventController extends BaseController
             ]);
 
             $user = Auth::user();
-            $eventOrganizerEntity = $user->eventOrganizer;
-
-            if (!$eventOrganizerEntity) {
-                return $this->sendError(
-                    'User is not associated with a valid Event Organizer entity.',
-                    [],
-                    403
-                );
-            }
 
             $eventTnc = TermAndCon::where('id', $validatedData['tnc_id'])
                 ->where('type', TncTypeEnum::EVENT->value)
                 ->first();
-
 
             if (!$eventTnc) {
                 return $this->sendError(
@@ -109,9 +101,23 @@ class EventController extends BaseController
                 );
             }
 
-            $event = DB::transaction(function () use ($validatedData, $user, $eventTnc, $eventOrganizerEntity) {
+            $organizer = $user->eventOrganizer;
+
+            if (!$organizer) {
+                $organizer = $user->eventOrganizer()->firstOrCreate(
+                    ['eo_owner_id' => $user->id], // Kunci untuk mencari
+                    [ // Data yang akan diisi jika tidak ditemukan
+                        'name' => $user->name . ' Organizer',
+                        'organizer_type' => 'individual',
+                        'phone_no_eo' => '0000', // Placeholder
+                        'address_eo' => 'Alamat belum diisi', // Placeholder
+                    ]
+                );
+            }
+
+            $event = DB::transaction(function () use ($validatedData, $user, $eventTnc, $organizer) {
                 $createdEvent = Event::create([
-                    'eo_id' => $eventOrganizerEntity->id,
+                    'eo_id' => $organizer->id,
                     'name' => $validatedData['name'],
                     'description' => $validatedData['description'],
                     'start_date' => $validatedData['start_date'],
@@ -164,24 +170,17 @@ class EventController extends BaseController
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, Event $event)
     {
+        if (Auth::id() !== $event->eventOrganizer->eo_owner_id) {
+            return $this->sendError('You are not authorized to update this event.', [], 403);
+        }
+
+        if ($event->status !== EventStatusEnum::DRAFT) {
+            return response()->json(['message' => 'Only draft events can be updated'], 403);
+        }
+
         try {
-            $event = Event::find($id);
-
-            if (!$event) {
-                return response()->json(['message' => 'Event not found'], 404);
-            }
-
-            if ($event->eo_id !== auth()->id()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
-
-            if ($event->status !== EventStatusEnum::DRAFT) {
-                return response()->json(['message' => 'Only draft events can be updated'], 403);
-            }
-
-            DB::beginTransaction();
             $validated = $request->validate([
                 'name' => 'sometimes|required|string|max:255',
                 'description' => 'nullable|string',
@@ -203,42 +202,43 @@ class EventController extends BaseController
                 'tickets.*.ticket_type_id' => 'required_with:tickets|exists:ticket_types,id',
             ]);
 
-            $event = Event::findOrFail($id);
+            $updatedEvent = DB::transaction(function () use ($validated, $event) {
 
-            return DB::transaction(function () use ($validated, $event) {
-                // Update data dasar event
-                $event->update([
-                    'name' => $validated['name'] ?? $event->name,
-                    'description' => $validated['description'] ?? $event->description,
-                    'start_date' => $validated['start_date'] ?? $event->start_date,
-                    'start_time' => $validated['start_time'] ?? $event->start_time,
-                    'end_date' => $validated['end_date'] ?? $event->end_date,
-                    'end_time' => $validated['end_time'] ?? $event->end_time,
-                    'location' => $validated['location'] ?? $event->location,
-                    'contact_phone' => $validated['contact_phone'] ?? $event->contact_phone,
-                ]);
+                // Update data dasar event dengan data yang divalidasi,
+                // kecuali data relasi (facilities, tickets)
+                $eventData = Arr::except($validated, ['facilities', 'tickets']);
+                if (!empty($eventData)) {
+                    $event->update($eventData);
+                }
 
-                // Sync facilities jika ada
+                // Sync facilities jika ada di dalam request
                 if (array_key_exists('facilities', $validated)) {
                     $event->facilities()->sync($validated['facilities'] ?? []);
                 }
 
-                // Handle tickets
-                if (!empty($validated['tickets'])) {
-                    foreach ($validated['tickets'] as $ticketData) {
-                        if (isset($ticketData['id'])) {
-                            // Update existing ticket
-                            $ticket = $event->tickets()->findOrFail($ticketData['id']);
-                            $ticket->update($ticketData);
+                // Handle create/update tickets jika ada di dalam request
+                if (array_key_exists('tickets', $validated)) {
+                    $ticketIdsToKeep = [];
+                    foreach ($validated['tickets'] ?? [] as $ticketData) {
+                        if (!empty($ticketData['id'])) {
+                            // Update tiket yang sudah ada
+                            $ticket = $event->tickets()->find($ticketData['id']);
+                            if ($ticket) {
+                                $ticket->update($ticketData);
+                                $ticketIdsToKeep[] = $ticket->id;
+                            }
                         } else {
-                            // Create new ticket
-                            $event->tickets()->create($ticketData);
+                            // Buat tiket baru
+                            $newTicket = $event->tickets()->create($ticketData);
+                            $ticketIdsToKeep[] = $newTicket->id;
                         }
                     }
+                    $event->tickets()->whereNotIn('id', $ticketIdsToKeep)->delete();
                 }
 
-                return response()->json($event->fresh(), 200);
+                return $event->fresh(['facilities', 'tickets']);
             });
+            return $this->sendResponse($updatedEvent, 'Event updated successfully');
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'message' => 'Event not found'
@@ -289,54 +289,89 @@ class EventController extends BaseController
         }
     }
 
-    public function publish($id)
+    public function publish(Request $request, Event $event)
     {
+        // dd($event);
+        DB::beginTransaction();
         try {
-            $event = Event::with('eventOrganizer.documentType')->find($id);
+            $user = Auth::user();
+            $organizer = $event->eventOrganizer;
 
-            if (!$event) {
-                return response()->json(['message' => 'Event not found'], 404);
-            }
-
-            if ($event->eo_id !== auth()->id()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if ($user->id !== $organizer->eo_owner_id) {
+                DB::rollBack();
+                return $this->sendError('You are not authorized to publish this event.', [], 403);
             }
 
             if ($event->is_published) {
-                return response()->json(['message' => 'Event already published'], 400);
+                DB::rollBack();
+                return $this->sendError('Event is already published.', [], 400);
             }
 
-            $eo = $event->eventOrganizer;
-
-            $missingFields = [];
-            foreach (['email_eo', 'phone_no_eo', 'address_eo', 'description'] as $field) {
-                if (empty($eo->$field))
-                    $missingFields[] = $field;
+            if ($organizer->phone_no_eo === '0000' || $organizer->address_eo === 'Alamat belum diisi') {
+                DB::rollBack();
+                return $this->sendError(
+                    'Please complete your Event Organizer profile (address, phone number, etc.) before publishing.',
+                    ['action_required' => 'UPDATE_EO_PROFILE'],
+                    422
+                );
             }
 
-            if (!empty($missingFields)) {
-                return response()->json([
-                    'message' => 'Lengkapi data EO terlebih dahulu',
-                    'missing_fields' => $missingFields
-                ], 422);
-            }
-
-            $documentType = $eo->documentType;
-
-            if (!$documentType || $documentType->status !== DocumentStatusEnum::VERIFIED) {
-                return response()->json([
-                    'message' => 'Dokumen legal belum diverifikasi'
-                ], 422);
+            if (!$organizer->hasUploadedRequiredDocuments()) {
+                DB::rollBack();
+                return $this->sendError(
+                    'Please upload all required documents for your profile (e.g., KTP for Individual) before publishing.',
+                    ['action_required' => 'UPLOAD_DOCUMENTS'],
+                    422
+                );
             }
 
             $event->update([
                 'is_published' => true,
                 'status' => EventStatusEnum::ACTIVE
             ]);
-            return response()->json(['message' => 'Event published successfully']);
+            DB::commit();
+
+            return $this->sendResponse($event, 'Event published successfully.');
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Failed to publish event: ' . $e->getMessage());
             return response()->json(['message' => 'Failed to publish event'], 500);
+        }
+    }
+
+    public function publicStatus(Request $request, Event $event)
+    {
+        if (Auth::id() !== $event->eventOrganizer->eo_owner_id) {
+            return $this->sendError('You are not authorized to change this event\'s visibility.', [], 403);
+        }
+
+        if (!$event->is_published) {
+            return $this->sendError('Only published events can be made public or private.', [], 422);
+        }
+
+        try {
+            $event->update([
+                'is_public' => !$event->is_public
+            ]);
+
+            $newStatus = $event->is_public ? 'Public' : 'Private';
+
+            return $this->sendResponse(
+                $event,
+                'Event visibility has been successfully changed to ' . $newStatus
+            );
+
+        } catch (\Exception $e) {
+            Log::error('Failed to toggle public status for event ID: ' . $event->id, [
+                'error_message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return $this->sendError(
+                'An unexpected error occurred while changing the event status. Please try again later.',
+                [],
+                500
+            );
         }
     }
 }
