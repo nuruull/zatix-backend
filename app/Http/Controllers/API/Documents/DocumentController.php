@@ -39,9 +39,6 @@ class DocumentController extends BaseController
 
         DB::beginTransaction();
         try {
-            if ($eventOrganizer->verification_status !== 'unverified') {
-                return $this->sendError('Cannot upload documents at this stage.', ['status' => $eventOrganizer->verification_status], 422);
-            }
             if ($eventOrganizer->documents()->where('type', $validated['type'])->exists()) {
                 return $this->sendError('A document of this type already exists.', [], 409);
             }
