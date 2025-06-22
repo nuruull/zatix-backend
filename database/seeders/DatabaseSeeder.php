@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             FacilitySeeder::class,
             TicketTypeSeeder::class,
             TermAndConSeeder::class,
+            EventOrganizerSeeder::class,
         ]);
     }
 }
