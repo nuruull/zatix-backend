@@ -29,16 +29,27 @@ class EventController extends BaseController
     use ManageFileTrait;
     public function index(Request $request)
     {
-        $events = Event::with(['facilities', 'tickets'])
-            ->where('is_published', true)
-            ->where('is_public', true)
+        $user = Auth::user();
+        $organizer = $user->eventOrganizer;
+
+        if (!$organizer) {
+            return $this->sendResponse([], 'User does not have an Event Organizer profile.');
+        }
+
+        $events = $organizer->events()
+            ->with(['facilities', 'tickets'])
             ->latest()
             ->paginate($request->input('per_page', 15));
-        return $this->sendResponse($events, 'Events retrieved successfully.');
+
+        return $this->sendResponse($events, 'My events retrieved successfully.');
     }
 
     public function show(Event $event)
     {
+        if (Auth::id() !== $event->eventOrganizer->eo_owner_id) {
+            return $this->sendError('Event not found.', [], 404);
+        }
+
         $event->load(['facilities', 'tickets', 'eventOrganizer']);
         return $this->sendResponse($event, 'Event retrieved successfully.');
     }
