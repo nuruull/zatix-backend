@@ -15,6 +15,7 @@ class Event extends Model
 
     protected $fillable = [
         'eo_id',
+        'tnc_id',
         'name',
         'description',
         'start_date',
@@ -23,10 +24,9 @@ class Event extends Model
         'end_time',
         'location',
         'status',
+        'contact_phone',
         'is_published',
         'is_public',
-        'contact_phone',
-        'tnc_id'
     ];
 
     protected function casts(): array

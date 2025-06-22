@@ -150,9 +150,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
             // Route::middleware(['permission:delete-event'])->delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
             // Route::middleware(['permission:publish-event'])->post('/{id}/publish', [EventController::class, 'publish']);
             Route::post('/create', [EventController::class, 'store'])->name('create');
-            Route::put('/update/{id}', [EventController::class, 'update'])->name('update');
-            Route::delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
-            Route::post('/{id}/publish', [EventController::class, 'publish']);
+            Route::put('/update/{event}', [EventController::class, 'update'])->name('update');
+            Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
+            Route::post('/{event}/publish', [EventController::class, 'publish']);
+            Route::post('/{event}/public', [EventController::class, 'publicStatus']);
         });
 
     Route::prefix('facilities')
