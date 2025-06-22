@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
-            $table->morphs('documentable'); //eo_id atau user_id
+            $table->morphs('documentable'); // Akan menunjuk ke EventOrganizer
             $table->string('type'); //ktp, npwp, nib
             $table->string('file');
             $table->string('number');
