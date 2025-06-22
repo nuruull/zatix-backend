@@ -158,11 +158,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('facilities')
         ->name('facility.')
-        ->middleware(['permission:view-any-facilities|create-facility|update-facility|delete-facility'])
+        ->middleware(['role:super-admin|eo-owner'])
         ->group(function () {
             Route::get('/', [FacilityController::class, 'index'])->name('index');
-            Route::post('/store', [FacilityController::class, 'store'])->name('store');
-            Route::put('/update/{id}', [FacilityController::class, 'update'])->name('update');
+            Route::post('/create', [FacilityController::class, 'store'])->name('store');
+            Route::put('/edit/{id}', [FacilityController::class, 'update'])->name('update');
             Route::delete('/{id}', [FacilityController::class, 'destroy'])->name('destroy');
         });
 
