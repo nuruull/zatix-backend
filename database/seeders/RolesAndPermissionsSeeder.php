@@ -149,9 +149,17 @@ class RolesAndPermissionsSeeder extends Seeder
         if ($user) {
             $user->assignRole('eo-owner');
         }
+        $user = User::find(2);
+        if ($user) {
+            $user->assignRole('customer');
+        }
         $user = User::find(3);
         if ($user) {
             $user->assignRole('eo-owner');
+        }
+        $user = User::find(3);
+        if ($user) {
+            $user->assignRole('customer');
         }
         $user = User::find(4);
         if ($user) {
@@ -169,9 +177,17 @@ class RolesAndPermissionsSeeder extends Seeder
         if ($user) {
             $user->assignRole('customer');
         }
+        $user = User::find(7);
+        if ($user) {
+            $user->assignRole('eo-owner');
+        }
         $user = User::find(8);
         if ($user) {
             $user->assignRole('customer');
+        }
+        $user = User::find(8);
+        if ($user) {
+            $user->assignRole('eo-owner');
         }
     }
 }
