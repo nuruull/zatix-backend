@@ -14,7 +14,6 @@ return new class extends Migration {
             $table->id();
             $table->unsignedBigInteger('eo_owner_id');
             $table->string('organizer_type'); // Tipe EO: 'individual' atau 'company'
-            $table->string('verification_status')->default('unverified'); // 'unverified', 'pending', 'verified', 'rejected'
             $table->string('name');
             $table->string('logo')->nullable();
             $table->text('description')->nullable();
