@@ -13,13 +13,14 @@ return new class extends Migration {
         Schema::create('event_organizers', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('eo_owner_id');
+            $table->string('organizer_type'); // Tipe EO: 'individual' atau 'company'
+            $table->string('verification_status')->default('unverified'); // 'unverified', 'pending', 'verified', 'rejected'
             $table->string('name');
             $table->string('logo')->nullable();
             $table->text('description')->nullable();
             $table->text('email_eo')->nullable();
             $table->text('phone_no_eo')->nullable();
             $table->text('address_eo')->nullable();
-            $table->boolean('is_doc_verified')->default(false);
             $table->timestamps();
 
             $table->foreign('eo_owner_id')->references('id')->on('users')->onDelete('cascade');
