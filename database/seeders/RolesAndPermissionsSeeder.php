@@ -151,19 +151,19 @@ class RolesAndPermissionsSeeder extends Seeder
         }
         $user = User::find(3);
         if ($user) {
-            $user->assignRole('crew');
+            $user->assignRole('eo-owner');
         }
         $user = User::find(4);
         if ($user) {
-            $user->assignRole('finance');
+            $user->assignRole('crew');
         }
         $user = User::find(5);
         if ($user) {
-            $user->assignRole('cashier');
+            $user->assignRole('finance');
         }
         $user = User::find(6);
         if ($user) {
-            $user->assignRole('customer');
+            $user->assignRole('cashier');
         }
         $user = User::find(7);
         if ($user) {
@@ -172,12 +172,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $user = User::find(8);
         if ($user) {
             $user->assignRole('customer');
-        }
-
-        //super admin id 1
-        $user1 = User::find(1);
-        if ($user1) {
-            $user1->syncPermissions(Permission::all());
         }
     }
 }

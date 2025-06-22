@@ -2,24 +2,24 @@
 
 namespace App\Notifications;
 
-use App\Models\Document;
 use Illuminate\Bus\Queueable;
+use App\Models\EventOrganizer;
+use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 class NewVerificationRequest extends Notification
 {
     use Queueable;
 
-    public $document;
+    public EventOrganizer $organizer;
 
     /**
      * Create a new notification instance.
      */
-    public function __construct(Document $document)
+    public function __construct(EventOrganizer $organizer)
     {
-        $this->document = $document;
+        $this->organizer = $organizer;
     }
 
     /**
@@ -37,18 +37,20 @@ class NewVerificationRequest extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $eoName = $this->document->documentable->name ?? 'Event Organizer';
-        $documentType = $this->document->type;
+        $eoName = $this->organizer->name;
 
-        $adminUrl = url('/test' . $this->document->id);
+        $documentList = $this->organizer->documents->pluck('type')->implode(', ');
+
+        $adminUrl = url('/' . $this->organizer->id);
 
         return (new MailMessage)
-            ->subject("Pengajuan Verifikasi Dokumen Baru dari {$eoName}")
+            ->subject("Pengajuan Verifikasi Profil Baru dari {$eoName}")
             ->greeting('Halo Admin,')
-            ->line("Ada pengajuan verifikasi dokumen baru yang membutuhkan perhatian Anda.")
-            ->line("Event Organizer: **{$eoName}**")
-            ->line("Jenis Dokumen: **{$documentType}**")
-            ->action('Tinjau Pengajuan Dokumen', $adminUrl)
+            ->line("Ada pengajuan verifikasi profil Event Organizer baru yang membutuhkan perhatian Anda.")
+            ->line("Nama Event Organizer: **{$eoName}**")
+            ->line("Tipe Organizer: **" . ucfirst($this->organizer->organizer_type->value) . "**")
+            ->line("Dokumen yang Diajukan: **{$documentList}**")
+            ->action('Tinjau Pengajuan Profil', $adminUrl)
             ->line('Silakan login ke panel admin untuk melakukan verifikasi.');
     }
 
@@ -59,13 +61,11 @@ class NewVerificationRequest extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $eoName = $this->document->documentable->name ?? 'Event Organizer';
-
         return [
-            'document_id' => $this->document->id,
-            'eo_name' => $eoName,
-            'message' => "Pengajuan verifikasi baru dari '{$eoName}' untuk dokumen '{$this->document->type}'.",
-            'admin_url' => '/test' . $this->document->id,
+            'organizer_id' => $this->organizer->id,
+            'organizer_name' => $this->organizer->name,
+            'message' => "Pengajuan verifikasi profil baru dari '{$this->organizer->name}'.",
+            'admin_url' => '/' . $this->organizer->id, // Sesuaikan URL admin Anda
         ];
     }
 }
