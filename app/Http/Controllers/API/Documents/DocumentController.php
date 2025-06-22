@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\Auth;
 use App\Enum\Status\DocumentStatusEnum;
 use App\Http\Controllers\BaseController;
 use App\Notifications\DocumentStatusUpdated;
-use Illuminate\Support\Facades\Notification;
-use App\Notifications\NewVerificationRequest;
 use Illuminate\Validation\ValidationException;
 
 class DocumentController extends BaseController
@@ -24,38 +22,34 @@ class DocumentController extends BaseController
     use ManageFileTrait;
     public function store(Request $request)
     {
+        $validated = $request->validate([
+            'event_organizer_id' => 'required|exists:event_organizers,id',
+            'type' => ['required', 'string', Rule::in(['ktp', 'npwp', 'nib'])],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
+            'number' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'address' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $eventOrganizer = EventOrganizer::findOrFail($validated['event_organizer_id']);
+
+        if (Auth::id() !== $eventOrganizer->eo_owner_id) {
+            return $this->sendError('Unauthorized. You are not the owner of this profile.', [], 403);
+        }
+
         DB::beginTransaction();
         try {
-            $user = Auth::user();
-
-            $eventOrganizer = $user->eventOrganizer;
-
-            if (!$eventOrganizer) {
-                DB::rollback();
-                return $this->sendError(
-                    "Event Organizer is invalid or not found for this user.",
-                    [],
-                    403
-                );
+            if ($eventOrganizer->verification_status !== 'unverified') {
+                return $this->sendError('Cannot upload documents at this stage.', ['status' => $eventOrganizer->verification_status], 422);
+            }
+            if ($eventOrganizer->documents()->where('type', $validated['type'])->exists()) {
+                return $this->sendError('A document of this type already exists.', [], 409);
             }
 
-            $allowedEoDocumentTypes = ['ktp', 'npwp', 'nib'];
-            $validated = $request->validate([
-                'type' => ['required', 'string', Rule::in($allowedEoDocumentTypes)],
-                'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'], // Max 2MB
-                'number' => ['required', 'string', 'max:255'],
-                'name' => ['required', 'string', 'max:255'],
-                'address' => ['required', 'string', 'max:1000'],
-            ]);
-
-            $filePath = null;
-            if ($request->hasFile('file')) {
-                $folder = 'documents/eo_' . $eventOrganizer->id . 'type/_' . $validated['type'];
-                $filePath = $this->storeFile($request->file('file'), $folder);
-                if (!$filePath) {
-                    DB::rollback();
-                    return $this->sendError('Failed to store the uploaded file.', [], 500);
-                }
+            $filePath = $this->storeFile($request->file('file'), 'documents/eo_' . $eventOrganizer->id);
+            if (!$filePath) {
+                DB::rollBack();
+                return $this->sendError('Failed to store the uploaded file.', [], 500);
             }
 
             $document = $eventOrganizer->documents()->create([
@@ -67,31 +61,21 @@ class DocumentController extends BaseController
                 'status' => DocumentStatusEnum::PENDING,
             ]);
 
-            $superAdmins = User::role('super-admin', 'api')->get();
-            if ($superAdmins->isNotEmpty()) {
-                Notification::send($superAdmins, new NewVerificationRequest($document));
-            }
-
             $document->load('documentable');
             DB::commit();
 
             return $this->sendResponse(
                 $document,
-                'Document successfully uploaded and awaiting verification.',
+                'Document uploaded successfully.',
                 201
             );
         } catch (ValidationException $e) {
-            DB::rollback();
+            DB::rollBack();
             return $this->sendError('Validation failed.', $e->errors(), 422);
         } catch (Throwable $th) {
-            DB::rollback();
-            Log::error('Error storing EO document: ' . $th->getMessage(), [
-                'trace' => $th->getTraceAsString(),
-                'user_id' => Auth::id(),
-                'event_organizer_id' => $eventOrganizer->id ?? null,
-                'request' => $request->all()
-            ]);
-            return $this->sendError('Failed to save the document.', ['detail' => $th->getMessage()], 500);
+            DB::rollBack();
+            Log::error('Error storing EO document: ' . $th->getMessage());
+            return $this->sendError('Failed to save the document.', [], 500);
         }
     }
 
