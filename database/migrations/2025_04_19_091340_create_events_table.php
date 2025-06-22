@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('events', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('eo_id');
+            $table->unsignedBigInteger('tnc_id');
             $table->string('name');
             // $table->text('slug')->unique();
             $table->string('poster')->nullable();
@@ -31,6 +32,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('eo_id')->references('id')->on('event_organizers')->onDelete('cascade');
+            $table->foreign('tnc_id')->references('id')->on('terms_and_cons')->onDelete('cascade');
         });
     }
 
