@@ -210,6 +210,31 @@ Route::middleware(['auth:sanctum'])->group(function () {
 //     ];
 // })->middleware('auth:sanctum');
 
-Route::get('/cek-phpinfo', function () {
-    phpinfo();
+Route::get('/reset-database', function () {
+    if (config('app.env') !== 'local' || config('app.debug') !== true) {
+        return response()->json([
+            'message' => 'This dangerous endpoint is only available in the local development environment with debug mode enabled.',
+            'status' => false,
+        ],
+        403);
+    }
+
+    try {
+        Artisan::call('migrate:fresh', ['--seed' => true]);
+        Artisan::call('cache:clear');
+        Artisan::call('config:clear');
+
+        return response()->json([
+            'message' => 'SUCCESS: Database has been reset and seeded.',
+            'status' => true,
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Failed to reset database via endpoint: ' . $e->getMessage());
+        return response()->json([
+            'message' => 'An error occurred while resetting the database.',
+            'error' => $e->getMessage(),
+            'status' => false,
+        ], 500); // 500 Internal Server Error
+    }
 });
