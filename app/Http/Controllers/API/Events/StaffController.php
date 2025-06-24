@@ -200,7 +200,24 @@ class StaffController extends BaseController
             $staff->update($validated);
 
             if (isset($validated['role'])) {
-                $staff->syncRoles([$validated['role']]);
+                // Cari role dengan guard 'api' secara eksplisit
+                $role = Role::where('name', $validated['role'])
+                    ->where('guard_name', 'api')
+                    ->first();
+
+                if (!$role) {
+                    return $this->sendError(
+                        'Role configuration error.',
+                        ['error' => 'The specified role is not properly configured for API guard.'],
+                        500
+                    );
+                }
+
+                // Sync roles dengan role object, bukan string
+                $staff->syncRoles([$role]);
+
+                // Atau alternatif dengan guard eksplisit:
+                // $staff->syncRoles([$validated['role']], 'api');
             }
 
             return $this->sendResponse($staff->fresh()->load('roles'), 'Staff updated successfully.');
@@ -226,13 +243,15 @@ class StaffController extends BaseController
 
             return $this->sendResponse(
                 [],
-                'Staff removed from the team successfully.');
+                'Staff removed from the team successfully.'
+            );
         } catch (Throwable $e) {
             Log::error('Failed to remove staff: ' . $e->getMessage(), ['exception' => $e]);
             return $this->sendError(
                 'Failed to remove staff.',
                 ['error' => 'An unexpected server error occurred.'],
-                500);
+                500
+            );
         }
     }
 }
