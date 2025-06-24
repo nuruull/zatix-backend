@@ -85,7 +85,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::prefix('event-organizers')
-        ->name('event-organizer.')
+        ->name('event-organizers.')
         ->group(function () {
             Route::middleware(['role:super-admin'])->group(function () {
                 Route::get('/', [EventOrganizerController::class, 'index'])->name('index');
