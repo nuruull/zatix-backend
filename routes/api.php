@@ -53,7 +53,7 @@ Route::post('/reset-password', [NewPasswordController::class, 'store']);
 Route::get('/get-general-tnc', [TermAndConController::class, 'getGeneralTnc']);
 
 
-Route::prefix('events')->name('event.')->group(function () {
+Route::prefix('events')->name('events.')->group(function () {
     Route::get('/', [EventPublicController::class, 'index'])->name('index');
     Route::get('/{event}', [EventPublicController::class, 'show'])->name('show');
 });
@@ -103,7 +103,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         });
 
     Route::prefix('documents')
-        ->name('document.')
+        ->name('documents.')
         ->group(function () {
             Route::middleware(['role:super-admin'])->group(function () {
                 Route::get('/', [DocumentController::class, 'index'])->name('index');
@@ -119,7 +119,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
             // Route::middleware(['permission:update-document-status'])->patch('/{document}/status', [DocumentController::class, 'updateStatus'])->name('updateStatus');
         });
 
-    Route::prefix('notifications')->name('notification.')->group(function () {
+    Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('markAsRead');
     });
@@ -142,7 +142,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         });
 
     Route::prefix('my/events')
-        ->name('event.')
+        ->name('my-events.')
         ->middleware(['role:eo-owner'])
         ->group(function () {
             // Route::middleware(['permission:create-event'])->post('/create', [EventController::class, 'store'])->name('create');
