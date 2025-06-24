@@ -124,12 +124,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('markAsRead');
     });
 
-    Route::prefix('staff')->middleware(['role:eo-owner'])->group(function () {
-        Route::get('/', [StaffController::class, 'index']);
-        Route::post('/create', [StaffController::class, 'store']);
-        Route::put('/{staff}', [StaffController::class, 'update']);
-        Route::delete('/{staff}', [StaffController::class, 'destroy']);
-    });
+    Route::prefix('staff')
+        ->name('staff.')
+        ->middleware(['role:eo-owner'])
+        ->group(function () {
+            Route::get('/', [StaffController::class, 'index'])->name('index');
+            Route::post('/create', [StaffController::class, 'store'])->name('store');
+            Route::put('/{staff}', [StaffController::class, 'update'])->name('update');
+            Route::delete('/{staff}', [StaffController::class, 'destroy'])->name('destroy');
+        });
 
     Route::prefix('tnc-events')
         ->name('tnc-event.')
@@ -212,11 +215,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 Route::get('/reset-database', function () {
     if (config('app.env') !== 'local' || config('app.debug') !== true) {
-        return response()->json([
-            'message' => 'This dangerous endpoint is only available in the local development environment with debug mode enabled.',
-            'status' => false,
-        ],
-        403);
+        return response()->json(
+            [
+                'message' => 'This dangerous endpoint is only available in the local development environment with debug mode enabled.',
+                'status' => false,
+            ],
+            403
+        );
     }
 
     try {
