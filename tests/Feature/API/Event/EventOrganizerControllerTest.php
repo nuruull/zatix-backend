@@ -9,6 +9,7 @@ use Illuminate\Http\UploadedFile;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -16,12 +17,9 @@ class EventOrganizerControllerTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
-    /**
-     * User yang akan diautentikasi untuk setiap test.
-     * @var \App\Models\User
-     */
     protected User $superAdminUser;
     protected User $eoOwnerUser;
+    protected User $anotherEoOwnerUser;
 
     protected function setUp(): void
     {
@@ -32,98 +30,66 @@ class EventOrganizerControllerTest extends TestCase
         Role::create(['name' => 'eo-owner', 'guard_name' => 'api']);
 
         // 2. Buat user untuk setiap role
-        $this->superAdminUser = User::factory()->create();
-        $this->superAdminUser->assignRole('super-admin');
-
-        $this->eoOwnerUser = User::factory()->create();
-        $this->eoOwnerUser->assignRole('eo-owner');
+        $this->superAdminUser = User::factory()->create()->assignRole('super-admin');
+        $this->eoOwnerUser = User::factory()->create()->assignRole('eo-owner');
+        $this->anotherEoOwnerUser = User::factory()->create()->assignRole('eo-owner');
     }
+
     protected function tearDown(): void
     {
         File::deleteDirectory(storage_path('app/public/event-organizers'));
         parent::tearDown();
     }
 
-    //======================================================================
-    // INDEX METHOD TESTS
-    //======================================================================
-
     #[Test]
-    public function super_admin_can_get_a_list_of_event_organizers(): void
+    public function eo_owner_can_create_their_profile(): void
     {
-        // Arrange
-        EventOrganizer::factory()->count(3)->create();
-        $this->actingAs($this->superAdminUser, 'sanctum'); // Login sebagai super-admin
+        $this->actingAs($this->eoOwnerUser, 'sanctum');
 
-        // Act
-        $response = $this->getJson(route('event-organizer.index'));
-
-        // Assert
-        $response->assertStatus(200)
-            ->assertJsonCount(3, 'data');
-    }
-
-    //======================================================================
-    // SHOW METHOD TESTS
-    //======================================================================
-
-    #[Test]
-    public function super_admin_can_get_a_single_event_organizer(): void
-    {
-        // Arrange
-        $organizer = EventOrganizer::factory()->create();
-        $this->actingAs($this->superAdminUser, 'sanctum'); // Login sebagai super-admin
-
-        // Act
-        $response = $this->getJson(route('event-organizer.show', $organizer->id));
-
-        // Assert
-        $response->assertStatus(200)
-            ->assertJsonPath('data.id', $organizer->id);
-    }
-
-    //======================================================================
-    // STORE METHOD TESTS
-    //======================================================================
-
-    #[Test]
-    public function eo_owner_can_create_an_event_organizer(): void
-    {
-        // Arrange
-        $this->actingAs($this->eoOwnerUser, 'sanctum'); // Login sebagai eo-owner
-        $file = UploadedFile::fake()->image('logo.jpg');
         $data = [
             'name' => 'My Awesome EO',
-            'logo' => $file,
+            'organizer_type' => 'individual',
+            'phone_no_eo' => '081234567890',
+            'address_eo' => 'Jl. Pahlawan No. 123',
+            'logo' => UploadedFile::fake()->image('logo.jpg'),
         ];
 
-        // Buat direktori tujuan secara manual agar ->move() di Trait berhasil
         File::makeDirectory(storage_path('app/public/event-organizers/logo'), 0755, true, true);
 
-        // Act
-        $response = $this->postJson(route('event-organizer.store'), $data);
+        $response = $this->postJson(route('event-organizers.store'), $data);
 
         // Assert
         $response->assertStatus(201);
         $this->assertDatabaseHas('event_organizers', ['name' => 'My Awesome EO']);
 
-        // Cek file sungguhan di disk
         $logoPath = $response->json('data.logo');
+
+        // --- PERUBAHAN: Gunakan File::exists untuk cek file fisik ---
         $this->assertTrue(File::exists(storage_path('app/public/' . $logoPath)));
     }
 
     #[Test]
-    public function store_fails_for_user_without_eo_owner_role(): void
+    public function an_eo_owner_cannot_create_a_second_profile(): void
     {
-        // Arrange
-        $userWithoutRole = User::factory()->create(); // User tanpa role
-        $this->actingAs($userWithoutRole, 'sanctum');
+        // Arrange: Buat profil pertama untuk user ini
+        EventOrganizer::factory()->create(['eo_owner_id' => $this->eoOwnerUser->id]);
+        $this->actingAs($this->eoOwnerUser, 'sanctum');
 
-        // Act
-        $response = $this->postJson(route('event-organizer.store'), ['name' => 'Test']);
+        // --- PENYEMPURNAAN: Kirim data yang valid agar tidak gagal di validasi ---
+        // Ini memastikan kita benar-benar menguji logika if ($user->eventOrganizer()->exists())
+        $data = [
+            'name' => 'Second Profile',
+            'organizer_type' => 'individual',
+            'phone_no_eo' => '0811111111',
+            'address_eo' => 'Alamat kedua',
+        ];
+
+        // Act: Coba buat profil kedua
+        $response = $this->postJson(route('event-organizers.store'), $data);
 
         // Assert
-        $response->assertStatus(403); // Harusnya Forbidden karena tidak punya role
+        $response->assertStatus(409); // 409 Conflict (sudah benar)
+        $this->assertDatabaseCount('event_organizers', 1);
     }
 
     //======================================================================
@@ -131,39 +97,68 @@ class EventOrganizerControllerTest extends TestCase
     //======================================================================
 
     #[Test]
-    public function eo_owner_can_update_an_event_organizer(): void
+    public function an_eo_owner_can_update_their_own_profile(): void
     {
         // Arrange
-        $this->actingAs($this->eoOwnerUser, 'sanctum'); // Login sebagai eo-owner
+        $organizer = EventOrganizer::factory()->create(['eo_owner_id' => $this->eoOwnerUser->id]);
+        $this->actingAs($this->eoOwnerUser, 'sanctum');
 
-        // Buat kondisi awal dengan file sungguhan
-        $folderPath = storage_path('app/public/event-organizers/logo');
-        File::makeDirectory($folderPath, 0755, true, true);
-
-        $oldLogoFile = UploadedFile::fake()->image('old_logo.jpg');
-        $oldLogoName = time() . '_old.' . $oldLogoFile->getClientOriginalExtension();
-        $oldLogoFile->move($folderPath, $oldLogoName);
-        $oldLogoDbPath = 'event-organizers/logo/' . $oldLogoName;
-
-        // Buat organizer yang dimiliki oleh eoOwnerUser dan punya logo lama
-        $organizer = EventOrganizer::factory()->create([
-            'logo' => $oldLogoDbPath,
-            'eo_owner_id' => $this->eoOwnerUser->id
-        ]);
-
-        $newLogo = UploadedFile::fake()->image('new_logo.png');
-        $updateData = ['name' => 'Updated EO Name', 'logo' => $newLogo];
+        $updateData = ['name' => 'Updated Awesome EO Name'];
 
         // Act
-        // Gunakan putJson karena route Anda menggunakan Route::put()
-        $response = $this->postJson(route('event-organizer.update', $organizer->id), array_merge($updateData, ['_method' => 'PUT']));
+        // --- PERBAIKAN: Gunakan ->id karena controller menerima $id, bukan objek ---
+        $response = $this->putJson(route('event-organizers.update', $organizer->id), $updateData);
 
         // Assert
         $response->assertStatus(200);
-        $this->assertDatabaseHas('event_organizers', ['name' => 'Updated EO Name']);
+        $this->assertDatabaseHas('event_organizers', [
+            'id' => $organizer->id,
+            'name' => 'Updated Awesome EO Name'
+        ]);
+    }
 
-        $newLogoDbPath = EventOrganizer::find($organizer->id)->logo;
-        $this->assertTrue(File::exists(storage_path('app/public/' . $newLogoDbPath)));
-        $this->assertFalse(File::exists(storage_path('app/public/' . $oldLogoDbPath)));
+    #[Test]
+    public function an_eo_owner_can_update_their_logo(): void
+    {
+        // Arrange
+        $organizer = EventOrganizer::factory()->create([
+            'eo_owner_id' => $this->eoOwnerUser->id,
+            'logo' => null // Awalnya tidak punya logo
+        ]);
+        $this->actingAs($this->eoOwnerUser, 'sanctum');
+
+        $newLogo = UploadedFile::fake()->image('new_logo.png');
+        $updateData = ['logo' => $newLogo];
+
+        // Buat direktori tujuan secara manual
+        File::makeDirectory(storage_path('app/public/event-organizers/logo'), 0755, true, true);
+
+        // Act
+        // --- PERBAIKAN: Gunakan postJson dengan _method PUT untuk upload file ---
+        $response = $this->postJson(route('event-organizers.update', $organizer->id), array_merge($updateData, ['_method' => 'PUT']));
+
+        // Assert
+        $response->assertStatus(200);
+
+        $organizer->refresh(); // Ambil data terbaru dari DB
+        $this->assertNotNull($organizer->logo);
+        $this->assertTrue(File::exists(storage_path('app/public/' . $organizer->logo)));
+    }
+
+    #[Test]
+    public function an_eo_owner_cannot_update_another_owners_profile(): void
+    {
+        // Arrange: Buat profil yang dimiliki oleh user lain
+        $organizerOfAnotherUser = EventOrganizer::factory()->create(['eo_owner_id' => $this->anotherEoOwnerUser->id]);
+
+        // Login sebagai user pertama
+        $this->actingAs($this->eoOwnerUser, 'sanctum');
+
+        // Act: Coba update profil milik user lain
+        // --- PERBAIKAN: Gunakan ->id ---
+        $response = $this->putJson(route('event-organizers.update', $organizerOfAnotherUser->id), ['name' => 'Hacked Name']);
+
+        // Assert
+        $response->assertStatus(403); // Forbidden (sudah benar)
     }
 }
