@@ -29,7 +29,7 @@ class PasswordResetTest extends TestCase
 
         $response
             ->assertStatus(200)
-            ->assertJson(['message' => 'Link reset password telah dikirim ke email Anda.']);
+            ->assertJson(['message' => 'The password reset link has been sent to your email.']);
 
         Notification::assertSentTo(
             [$user],
