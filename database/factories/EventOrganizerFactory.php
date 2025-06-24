@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\User;
+use App\Enum\Type\OrganizerTypeEnum;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,13 +19,15 @@ class EventOrganizerFactory extends Factory
     public function definition(): array
     {
         return [
+            // Kolom yang sudah ada
             'name' => $this->faker->company(),
             'description' => $this->faker->paragraph(),
             'email_eo' => $this->faker->unique()->safeEmail(),
             'phone_no_eo' => $this->faker->phoneNumber(),
             'address_eo' => $this->faker->address(),
-            'logo' => null, // Defaultnya null, bisa di-override di test
-            'eo_owner_id' => User::factory(), // Secara otomatis membuat User baru sebagai pemilik
+            'logo' => null,
+            'eo_owner_id' => User::factory(),
+            'organizer_type' => $this->faker->randomElement(OrganizerTypeEnum::cases()),
         ];
     }
 }
