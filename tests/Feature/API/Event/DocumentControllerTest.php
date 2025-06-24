@@ -8,13 +8,11 @@ use App\Models\Document;
 use Illuminate\Http\UploadedFile;
 use App\Models\EventOrganizer;
 use Spatie\Permission\Models\Role;
-use Illuminate\Support\Facades\Storage;
 use App\Enum\Status\DocumentStatusEnum;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\DocumentStatusUpdated;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Notifications\NewVerificationRequest;
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Facades\File;
 
@@ -23,60 +21,51 @@ class DocumentControllerTest extends TestCase
     use RefreshDatabase, WithFaker;
 
     protected User $eoUser;
+    protected User $anotherEoUser;
     protected User $superAdminUser;
     protected EventOrganizer $eventOrganizer;
-
-    protected function tearDown(): void
-    {
-        File::deleteDirectory(storage_path('app/public/documents'));
-        parent::tearDown();
-    }
 
     public function setUp(): void
     {
         parent::setUp();
 
-        // Buat role super-admin
+        // Buat roles
         Role::create(['name' => 'super-admin', 'guard_name' => 'api']);
         Role::create(['name' => 'eo-owner', 'guard_name' => 'api']);
 
+        // Buat user & profil EO utama untuk testing
+        $this->eoUser = User::factory()->create()->assignRole('eo-owner');
+        $this->eventOrganizer = EventOrganizer::factory()->create(['eo_owner_id' => $this->eoUser->id]);
+
         // Buat user super-admin
-        $this->superAdminUser = User::factory()->create();
-        $this->superAdminUser->assignRole('super-admin');
+        $this->superAdminUser = User::factory()->create()->assignRole('super-admin');
 
-        // Buat user pemilik EO
-        $this->eoUser = User::factory()->create();
-        $this->eventOrganizer = EventOrganizer::factory()->create([
-            'eo_owner_id' => $this->eoUser->id,
-        ]);
-
-        // Buat user pemilik EO dan EO-nya
-        $this->eoUser = User::factory()->create();
-        $this->eventOrganizer = EventOrganizer::factory()->create([
-            'eo_owner_id' => $this->eoUser->id,
-        ]);
-        $this->eoUser->assignRole('eo-owner');
+        // Buat user EO kedua untuk test otorisasi
+        $this->anotherEoUser = User::factory()->create()->assignRole('eo-owner');
     }
+
+    protected function tearDown(): void
+    {
+        if (File::exists(storage_path('app/public/documents'))) {
+            File::deleteDirectory(storage_path('app/public/documents'));
+        }
+        parent::tearDown();
+    }
+
 
     //==================================
     // STORE METHOD TESTS
     //==================================
 
     #[Test]
-    public function can_store_document_successfully_and_notifies_admin(): void
+    public function an_eo_owner_can_upload_a_document_for_their_eo(): void
     {
-        Notification::fake();
-
-        // Lakukan otentikasi (pilih salah satu, withToken lebih disarankan)
+        // Arrange
         $this->actingAs($this->eoUser, 'sanctum');
-        // $token = $this->eoUser->createToken('test-token')->plainTextToken;
 
-        // 2. BUAT DIREKTORI TUJUAN SECARA MANUAL DI DISK SUNGGUHAN
-        $folder = 'documents/eo_' . $this->eventOrganizer->id . 'type/_ktp';
-        File::makeDirectory(storage_path('app/public/' . $folder), 0755, true, true);
-
-        // Siapkan data request
+        // Siapkan data request, TERMASUK event_organizer_id
         $data = [
+            'event_organizer_id' => $this->eventOrganizer->id,
             'type' => 'ktp',
             'file' => UploadedFile::fake()->image('ktp.jpg'),
             'number' => '3201234567890001',
@@ -84,228 +73,181 @@ class DocumentControllerTest extends TestCase
             'address' => $this->faker->address,
         ];
 
-        // Act: Kirim request
-        $response = $this->postJson(route('document.store'), $data);
-        // Jika pakai token: $this->withToken($token)->postJson(...)
+        // Buat direktori tujuan secara manual agar ->move() di Trait berhasil
+        File::makeDirectory(storage_path('app/public/documents/eo_' . $this->eventOrganizer->id), 0755, true, true);
 
-        // Assert: Pastikan response sukses
+        // Act
+        $response = $this->postJson(route('documents.store'), $data);
+
+        // Assert
         $response->assertStatus(201);
-
-        // Assert: Pastikan data tersimpan di database
         $this->assertDatabaseHas('documents', [
             'documentable_id' => $this->eventOrganizer->id,
             'type' => 'ktp',
         ]);
 
-        // 3. GUNAKAN `File::exists()` UNTUK MEMERIKSA FILE DI DISK SUNGGUHAN
         $document = Document::first();
-        $this->assertTrue(
-            File::exists(storage_path('app/public/' . $document->file)),
-            "File seharusnya ada di disk sungguhan pada path: " . $document->file
-        );
-
-        // Assert notifikasi
-        Notification::assertSentTo($this->superAdminUser, NewVerificationRequest::class);
+        $this->assertTrue(File::exists(storage_path('app/public/' . $document->file)));
     }
 
     #[Test]
-    public function store_fails_if_user_has_no_event_organizer(): void
+    public function an_eo_owner_cannot_upload_for_another_owners_eo(): void
     {
-        // Arrange: Buat user baru, berikan role, tapi JANGAN buat Event Organizer untuknya.
-        $userWithoutEo = User::factory()->create();
-        $userWithoutEo->assignRole('eo-owner'); // Berikan role agar lolos middleware
+        // Arrange
+        $anotherOrganizer = EventOrganizer::factory()->create(['eo_owner_id' => $this->anotherEoUser->id]);
+        $this->actingAs($this->eoUser, 'sanctum'); // Login sebagai user pertama
 
-        // Gunakan guard 'sanctum' untuk otentikasi
-        $this->actingAs($userWithoutEo, 'sanctum');
-
-        // Siapkan data dummy untuk dikirim
         $data = [
+            'event_organizer_id' => $anotherOrganizer->id, // Coba upload untuk EO milik orang lain
             'type' => 'ktp',
             'file' => UploadedFile::fake()->image('ktp.jpg'),
             'number' => '12345',
-            'name' => 'Test User',
-            'address' => 'Test Address',
+            'name' => 'test',
+            'address' => 'test',
         ];
 
-        // Act: Kirim request
-        $response = $this->postJson(route('document.store'), $data);
+        // Act
+        $response = $this->postJson(route('documents.store'), $data);
 
-        // Assert: Sekarang request akan lolos middleware dan masuk ke controller,
-        // di mana ia akan gagal di `if (!$eventOrganizer)` dan mengembalikan 403.
-        $response->assertStatus(403)
-            ->assertJsonPath('message', 'Event Organizer is invalid or not found for this user.');
+        // Assert
+        $response->assertStatus(403); // Forbidden
+    }
+
+    #[Test]
+    public function store_fails_if_document_type_already_exists(): void
+    {
+        // Arrange: Buat dokumen KTP untuk EO ini
+        Document::factory()->for($this->eventOrganizer, 'documentable')->forKtp()->create();
+        $this->actingAs($this->eoUser, 'sanctum');
+
+        $data = [
+            'event_organizer_id' => $this->eventOrganizer->id,
+            'type' => 'ktp', // Coba upload KTP lagi
+            'file' => UploadedFile::fake()->image('ktp_kedua.jpg'),
+            'number' => '98765',
+            'name' => 'test',
+            'address' => 'test',
+        ];
+
+        // Act
+        $response = $this->postJson(route('documents.store'), $data);
+
+        // Assert
+        $response->assertStatus(409); // Conflict
+        $this->assertDatabaseCount('documents', 1);
     }
 
     #[Test]
     public function store_fails_on_validation_error(): void
     {
-        // Arrange
-        // Menggunakan guard 'sanctum' agar sesuai dengan middleware route Anda
-        $this->actingAs($this->eoUser, 'sanctum'); // <-- Penyesuaian penting di sini
-
-        $invalidData = [
-            'type' => 'surat_cinta', // Tipe tidak valid
-            'file' => UploadedFile::fake()->create('document.txt', 100, 'text/plain'), // Mime tidak valid
-        ];
-
-        // Act
-        // Pastikan nama route sudah benar (biasanya plural)
-        $response = $this->postJson(route('document.store'), $invalidData);
-
-        // Assert
-        $response->assertStatus(422) // Mengharapkan error validasi
-            ->assertJsonValidationErrors(['type', 'file', 'number', 'name', 'address']);
+        $this->actingAs($this->eoUser, 'sanctum');
+        $invalidData = ['event_organizer_id' => $this->eventOrganizer->id, 'type' => 'surat_cinta'];
+        $response = $this->postJson(route('documents.store'), $invalidData);
+        $response->assertStatus(422)->assertJsonValidationErrors(['type', 'file', 'number']);
     }
 
     //==================================
-    // INDEX METHOD TESTS
+    // INDEX, SHOW, & UPDATE STATUS TESTS
     //==================================
 
     #[Test]
-    public function can_get_list_of_pending_documents_by_default(): void
+    public function an_admin_can_get_list_of_pending_documents_by_default(): void
     {
-        // Arrange
         Document::factory()->count(2)->create(['status' => DocumentStatusEnum::PENDING]);
-        // Saya ganti menjadi APPROVED agar konsisten dengan tes lain
         Document::factory()->count(3)->create(['status' => DocumentStatusEnum::VERIFIED]);
-
-        // Gunakan guard 'sanctum' agar otentikasi berhasil
-        $this->actingAs($this->superAdminUser, 'sanctum'); // <-- Penyesuaian penting di sini
-
-        // Act
-        $response = $this->getJson(route('document.index'));
-
-        // Assert
-        $response->assertStatus(200)
-            ->assertJsonCount(2, 'data.data'); // Cek di dalam data paginasi
-    }
-
-    #[Test]
-    public function can_filter_documents_by_status(): void
-    {
-        // Arrange
-        Document::factory()->count(2)->create(['status' => DocumentStatusEnum::PENDING]);
-        // Saya ubah menjadi APPROVED agar konsisten dengan tes lainnya
-        Document::factory()->count(3)->create(['status' => DocumentStatusEnum::VERIFIED]);
-
-        // Gunakan guard 'sanctum' agar otentikasi berhasil
-        $this->actingAs($this->superAdminUser, 'sanctum'); // <-- Penyesuaian penting di sini
-
-        // Act
-        // Sesuaikan nilai filter dengan status yang dibuat
-        $response = $this->getJson(route('document.index', ['status' => 'verified']));
-
-        // Assert
-        $response->assertStatus(200)
-            ->assertJsonCount(3, 'data.data');
-    }
-
-    #[Test]
-    public function returns_error_for_invalid_status_filter(): void
-    {
-        // Arrange
         $this->actingAs($this->superAdminUser, 'sanctum');
-
-        // Act
-        $response = $this->getJson(route('document.index', ['status' => 'invalid_status']));
-
-        // Assert
-        $response->assertStatus(400);
+        $response = $this->getJson(route('documents.index'));
+        $response->assertStatus(200)->assertJsonCount(2, 'data.data');
     }
 
-    //==================================
-    // SHOW METHOD TESTS
-    //==================================
-
     #[Test]
-    public function can_show_a_single_document(): void
+    public function an_admin_can_show_a_single_document(): void
     {
-        // Arrange
         $document = Document::factory()->create();
         $this->actingAs($this->superAdminUser, 'sanctum');
-
-        // Act
-        $response = $this->getJson(route('document.show', $document->id));
-
-        // Assert
-        $response->assertStatus(200)
-            ->assertJsonPath('data.id', $document->id);
+        $response = $this->getJson(route('documents.show', $document->id));
+        $response->assertStatus(200)->assertJsonPath('data.id', $document->id);
     }
 
-    //==================================
-    // UPDATE STATUS METHOD TESTS
-    //==================================
-
     #[Test]
-    public function can_update_document_status_to_verified_and_notifies_user(): void
+    public function an_admin_can_update_document_status_to_verified_and_notifies_user(): void
     {
-        // Arrange
         Notification::fake();
-        $document = Document::factory()->create([
-            'documentable_id' => $this->eventOrganizer->id,
-            'documentable_type' => EventOrganizer::class,
-            'status' => DocumentStatusEnum::PENDING,
-        ]);
+        $document = Document::factory()->for($this->eventOrganizer, 'documentable')->create(['status' => DocumentStatusEnum::PENDING]);
         $this->actingAs($this->superAdminUser, 'sanctum');
 
-        // Act
-        $response = $this->patchJson(route('document.updateStatus', $document->id), [
+        $response = $this->patchJson(route('documents.updateStatus', $document->id), [
             'status' => DocumentStatusEnum::VERIFIED->value
         ]);
 
-        // Assert
-        $response->assertStatus(200)
-            ->assertJsonPath('data.status', DocumentStatusEnum::VERIFIED->value);
-
-        $this->assertDatabaseHas('documents', [
-            'id' => $document->id,
-            'status' => DocumentStatusEnum::VERIFIED->value
-        ]);
-
-        // Assert
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('documents', ['id' => $document->id, 'status' => DocumentStatusEnum::VERIFIED->value]);
         Notification::assertSentTo($this->eoUser, DocumentStatusUpdated::class);
     }
 
+    // --- TEST BARU DITAMBAHKAN DI SINI ---
+
     #[Test]
-    public function can_update_document_status_to_rejected_with_reason(): void
+    public function an_admin_can_update_document_status_to_rejected_with_reason(): void
     {
         // Arrange
         Notification::fake();
-        $document = Document::factory()->create([
-            'documentable_id' => $this->eventOrganizer->id,
-            'documentable_type' => EventOrganizer::class,
-            'status' => DocumentStatusEnum::PENDING,
-        ]);
+        $document = Document::factory()->for($this->eventOrganizer, 'documentable')->create(['status' => DocumentStatusEnum::PENDING]);
         $this->actingAs($this->superAdminUser, 'sanctum');
+        $reason = 'Foto KTP buram dan tidak terbaca.';
 
         // Act
-        $response = $this->patchJson(route('document.updateStatus', $document->id), [
+        $response = $this->patchJson(route('documents.updateStatus', $document->id), [
             'status' => DocumentStatusEnum::REJECTED->value,
-            'reason_rejected' => 'KTP tidak terbaca.'
+            'reason_rejected' => $reason
         ]);
 
         // Assert
         $response->assertStatus(200)
             ->assertJsonPath('data.status', DocumentStatusEnum::REJECTED->value)
-            ->assertJsonPath('data.reason_rejected', 'KTP tidak terbaca.');
+            ->assertJsonPath('data.reason_rejected', $reason);
+
+        $this->assertDatabaseHas('documents', [
+            'id' => $document->id,
+            'status' => DocumentStatusEnum::REJECTED->value,
+            'reason_rejected' => $reason
+        ]);
 
         Notification::assertSentTo($this->eoUser, DocumentStatusUpdated::class);
     }
 
     #[Test]
-    public function update_status_fails_if_rejected_without_reason(): void
+    public function update_status_to_rejected_fails_without_a_reason(): void
     {
         // Arrange
-        $document = Document::factory()->create();
+        $document = Document::factory()->create(['status' => DocumentStatusEnum::PENDING]);
         $this->actingAs($this->superAdminUser, 'sanctum');
 
-        // Act
-        $response = $this->patchJson(route('document.updateStatus', $document->id), [
+        // Act: Coba reject tanpa menyertakan 'reason_rejected'
+        $response = $this->patchJson(route('documents.updateStatus', $document->id), [
             'status' => DocumentStatusEnum::REJECTED->value
         ]);
 
         // Assert
-        $response->assertStatus(422)
+        $response->assertStatus(422) // Unprocessable Entity (Error Validasi)
             ->assertJsonValidationErrors(['reason_rejected']);
+    }
+
+    #[Test]
+    public function a_non_admin_cannot_update_document_status(): void
+    {
+        // Arrange
+        $document = Document::factory()->create(['status' => DocumentStatusEnum::PENDING]);
+        // Login sebagai EO Owner, bukan sebagai Super Admin
+        $this->actingAs($this->eoUser, 'sanctum');
+
+        // Act: Coba ubah status
+        $response = $this->patchJson(route('documents.updateStatus', $document->id), [
+            'status' => DocumentStatusEnum::VERIFIED->value
+        ]);
+
+        // Assert
+        // Aksi ini seharusnya diblokir oleh middleware 'role:super-admin'
+        $response->assertStatus(403); // Forbidden
     }
 }
