@@ -152,13 +152,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
             // Route::middleware(['permission:update-event'])->put('/update/{id}', [EventController::class, 'update'])->name('update');
             // Route::middleware(['permission:delete-event'])->delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
             // Route::middleware(['permission:publish-event'])->post('/{id}/publish', [EventController::class, 'publish']);
-            Route::get('/', [EventController::class, 'index']);
-            Route::get('/{event}', [EventController::class, 'show']);
-            Route::post('/create', [EventController::class, 'store'])->name('create');
+            Route::get('/', [EventController::class, 'index'])->name('index');
+            Route::get('/{event}', [EventController::class, 'show'])->name('show');
+            Route::post('/create', [EventController::class, 'store'])->name('store');
             Route::put('/update/{event}', [EventController::class, 'update'])->name('update');
             Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
-            Route::post('/{event}/publish', [EventController::class, 'publish']);
-            Route::post('/{event}/public', [EventController::class, 'publicStatus']);
+            Route::post('/{event}/publish', [EventController::class, 'publish'])->name('publish');
+            Route::post('/{event}/public', [EventController::class, 'publicStatus'])->name('public');
+            ;
         });
 
     Route::prefix('facilities')
