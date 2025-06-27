@@ -110,7 +110,5 @@ class EventSeeder extends Seeder
                 'ticket_type_id' => $ticketType->id,
             ]);
         }
-
-        $this->command->info(count($eventsData) . ' Events telah berhasil dibuat untuk EO: ' . $organizer->name);
     }
 }

@@ -73,4 +73,8 @@ class Event extends Model
     public function tncStatuses(){
         return $this->hasMany(TncStatus::class);
     }
+
+    public function orders(){
+        return $this->hasMany(Order::class);
+    }
 }
