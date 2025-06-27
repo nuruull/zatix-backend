@@ -13,7 +13,7 @@ return new class extends Migration {
         Schema::create('e_tickets', function (Blueprint $table) {
             $table->id();
             $table->string('ticket_code')->unique(); // Kode unik untuk QR Code
-            $table->unsignedBigInteger('order_id');
+            $table->uuid('order_id');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('ticket_id'); // Jenis tiketnya
             $table->string('attendee_name')->nullable();
