@@ -5,12 +5,14 @@ namespace Tests\Unit\Http\Controllers\API\Events;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Event;
+use App\Models\Document;
 use App\Models\Facility;
 use App\Models\TncStatus;
 use App\Models\TermAndCon;
 use App\Models\TicketType;
 use App\Enum\Type\TncTypeEnum;
 use App\Models\EventOrganizer;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use App\Enum\Status\EventStatusEnum;
 use PHPUnit\Framework\Attributes\Test;
@@ -37,7 +39,7 @@ class EventControllerTest extends TestCase
             'name' => 'Test EO Owner',
             'email' => 'eo@test.com'
         ]);
-        $this->user->assignRole('eo-owner'); // <-- PERBAIKAN: Assign role
+        $this->user->assignRole('eo-owner');
 
         // Create event organizer
         $this->organizer = EventOrganizer::factory()->create([
@@ -55,12 +57,14 @@ class EventControllerTest extends TestCase
         ]);
 
         // 3. Membuat TNC status untuk user
-        // PERBAIKAN: Menghapus 'is_accepted' dan menggunakan 'agreed_at'
-        TncStatus::factory()->create([
+        // PERBAIKAN FINAL: Menggunakan DB::table()->insert() untuk bypass Eloquent & Factory
+        DB::table('tnc_statuses')->insert([
             'user_id' => $this->user->id,
             'tnc_id' => $this->eventTnc->id,
             'event_id' => null,
-            'agreed_at' => now(), // <-- Controller mengecek keberadaan record ini
+            'accepted_at' => now(),
+            'created_at' => now(), // Manually add timestamps
+            'updated_at' => now(), // Manually add timestamps
         ]);
     }
 
@@ -99,6 +103,7 @@ class EventControllerTest extends TestCase
         ];
 
         // Act
+        // Menggunakan guard 'sanctum' dan route name 'my-events.store'
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson(route('my-events.store'), $eventData);
 
@@ -122,422 +127,443 @@ class EventControllerTest extends TestCase
         $this->assertCount(1, $event->tickets);
     }
 
-    // /**
-    //  * US14: Test validation when creating draft event
-    //  * @test
-    //  */
-    // public function test_create_event_validation_fails()
-    // {
-    //     // Act - Missing required fields
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->postJson('/api/events', []);
+    /**
+     * US14: Test validation when creating draft event
+     */
+    #[Test]
+    public function test_create_event_validation_fails()
+    {
+        // Act - Missing required fields
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->postJson(route('my-events.store'), []);
 
-    //     // Assert
-    //     $response->assertStatus(422)
-    //         ->assertJson([
-    //             'success' => false,
-    //             'message' => 'Validation failed'
-    //         ]);
-    // }
+        // Assert
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Validation failed'
+            ]);
+    }
 
-    // /**
-    //  * US14: Test creating event without accepting TNC fails
-    //  * @test
-    //  */
-    // public function test_create_event_without_tnc_acceptance_fails()
-    // {
-    //     // Arrange - Remove TNC acceptance
-    //     TncStatus::where('user_id', $this->user->id)->delete();
+    /**
+     * US14: Test creating event without accepting TNC fails
+     */
+    #[Test]
+    public function test_create_event_without_tnc_acceptance_fails()
+    {
+        // Arrange - Remove TNC acceptance
+        TncStatus::where('user_id', $this->user->id)->delete();
 
-    //     $eventData = [
-    //         'name' => 'Test Event',
-    //         'start_date' => '2025-07-01',
-    //         'start_time' => '10:00',
-    //         'end_date' => '2025-07-01',
-    //         'end_time' => '18:00',
-    //         'location' => 'Test Location',
-    //         'contact_phone' => '081234567890',
-    //         'tnc_id' => $this->eventTnc->id,
-    //     ];
+        $eventData = [
+            'name' => 'Test Event',
+            'start_date' => '2025-07-01',
+            'start_time' => '10:00',
+            'end_date' => '2025-07-01',
+            'end_time' => '18:00',
+            'location' => 'Test Location',
+            'contact_phone' => '081234567890',
+            'tnc_id' => $this->eventTnc->id,
+        ];
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->postJson('/api/events', $eventData);
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->postJson(route('my-events.store'), $eventData);
 
-    //     // Assert
-    //     $response->assertStatus(403)
-    //         ->assertJson([
-    //             'success' => false,
-    //             'message' => 'You must agree to the specified event terms and conditions to create an event.'
-    //         ]);
-    // }
+        // Assert
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'You must agree to the specified event terms and conditions to create an event.'
+            ]);
+    }
 
-    // /**
-    //  * US15: Test publishing event successfully
-    //  * @test
-    //  */
-    // public function test_eo_owner_can_publish_event()
-    // {
-    //     // Arrange - Create draft event
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id,
-    //         'status' => EventStatusEnum::DRAFT,
-    //         'is_published' => false
-    //     ]);
+    /**
+     * US15: Test publishing event successfully
+     */
+    /**
+     * US15: Test publishing event successfully
+     */
+    #[Test]
+    public function test_eo_owner_can_publish_event()
+    {
+        // Arrange
+        // 1. Pastikan profil organizer lengkap SECARA EKSPLISIT.
+        $this->organizer->update([
+            'phone_no_eo' => '081234567890',
+            'address_eo' => 'Jalan Jenderal Sudirman No. 45, Pekanbaru',
+        ]);
 
-    //     // Mock required documents method
-    //     $this->organizer->shouldReceive('hasUploadedRequiredDocuments')
-    //         ->andReturn(true);
+        Document::factory()->create([
+            'documentable_id' => $this->organizer->id,
+            'documentable_type' => EventOrganizer::class,
+            'type' => 'ktp', // Menggunakan nama kolom yang benar: 'type'
+            'file' => 'documents/ktp.pdf', // Menggunakan 'file' jika itu nama kolomnya
+            'status' => 'verified',
+            // Jika factory tidak mengisi field lain, tambahkan di sini. Contoh:
+            'number' => '1234567890123456',
+            'name' => $this->organizer->name,
+            'address' => $this->organizer->address_eo,
+        ]);
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->putJson("/api/events/{$event->id}/publish");
 
-    //     // Assert
-    //     $response->assertStatus(200)
-    //         ->assertJson([
-    //             'success' => true,
-    //             'message' => 'Event published successfully.'
-    //         ]);
+        // 3. Buat event draft.
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id,
+            'status' => EventStatusEnum::DRAFT,
+            'is_published' => false
+        ]);
 
-    //     $this->assertDatabaseHas('events', [
-    //         'id' => $event->id,
-    //         'is_published' => true,
-    //         'status' => EventStatusEnum::ACTIVE
-    //     ]);
-    // }
+        // Act: Kirim request untuk mempublikasikan event.
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->postJson(route('my-events.publish', $event->id));
 
-    // /**
-    //  * US15: Test publishing event fails when organizer profile incomplete
-    //  * @test
-    //  */
-    // public function test_publish_event_fails_with_incomplete_profile()
-    // {
-    //     // Arrange - Create organizer with incomplete profile
-    //     $incompleteOrganizer = EventOrganizer::factory()->create([
-    //         'eo_owner_id' => $this->user->id,
-    //         'phone_no_eo' => '0000', // Placeholder value
-    //         'address_eo' => 'Alamat belum diisi' // Placeholder value
-    //     ]);
+        // Assert: Pastikan response sukses dan data di database sudah ter-update.
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Event published successfully.'
+            ]);
 
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $incompleteOrganizer->id,
-    //         'status' => EventStatusEnum::DRAFT,
-    //         'is_published' => false
-    //     ]);
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'is_published' => true,
+            'status' => EventStatusEnum::ACTIVE->value
+        ]);
+    }
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->putJson("/api/events/{$event->id}/publish");
+    /**
+     * US15: Test publishing event fails when organizer profile incomplete
+     */
+    #[Test]
+    public function test_publish_event_fails_with_incomplete_profile()
+    {
+        // Arrange - Create organizer with incomplete profile
+        $incompleteOrganizer = EventOrganizer::factory()->create([
+            'eo_owner_id' => $this->user->id,
+            'phone_no_eo' => '0000', // Placeholder value
+            'address_eo' => 'Alamat belum diisi' // Placeholder value
+        ]);
 
-    //     // Assert
-    //     $response->assertStatus(422)
-    //         ->assertJson([
-    //             'success' => false,
-    //             'message' => 'Please complete your Event Organizer profile (address, phone number, etc.) before publishing.',
-    //             'data' => [
-    //                 'action_required' => 'UPDATE_EO_PROFILE'
-    //             ]
-    //         ]);
-    // }
+        $event = Event::factory()->create([
+            'eo_id' => $incompleteOrganizer->id,
+            'status' => EventStatusEnum::DRAFT,
+            'is_published' => false
+        ]);
 
-    // /**
-    //  * US15: Test publishing event fails when documents not uploaded
-    //  * @test
-    //  */
-    // public function test_publish_event_fails_without_required_documents()
-    // {
-    //     // Arrange
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id,
-    //         'status' => EventStatusEnum::DRAFT,
-    //         'is_published' => false
-    //     ]);
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->postJson(route('my-events.publish', $event->id));
 
-    //     // Mock required documents method to return false
-    //     $this->organizer->shouldReceive('hasUploadedRequiredDocuments')
-    //         ->andReturn(false);
+        // Assert
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Please complete your Event Organizer profile (address, phone number, etc.) before publishing.',
+                'errors' => [
+                    'action_required' => 'UPDATE_EO_PROFILE'
+                ]
+            ]);
+    }
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->putJson("/api/events/{$event->id}/publish");
+    /**
+     * US15: Test publishing event fails when documents not uploaded
+     */
+    #[Test]
+    public function test_publish_event_fails_without_required_documents()
+    {
+        // Arrange
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id,
+            'status' => EventStatusEnum::DRAFT,
+            'is_published' => false
+        ]);
 
-    //     // Assert
-    //     $response->assertStatus(422)
-    //         ->assertJson([
-    //             'success' => false,
-    //             'message' => 'Please upload all required documents for your profile (e.g., KTP for Individual) before publishing.',
-    //             'data' => [
-    //                 'action_required' => 'UPLOAD_DOCUMENTS'
-    //             ]
-    //         ]);
-    // }
+        // Mock required documents method to return false
+        $this->partialMock(EventOrganizer::class, function ($mock) {
+            $mock->shouldReceive('hasUploadedRequiredDocuments')->andReturn(false);
+        });
 
-    // /**
-    //  * US15: Test unauthorized user cannot publish event
-    //  * @test
-    //  */
-    // public function test_unauthorized_user_cannot_publish_event()
-    // {
-    //     // Arrange
-    //     $otherUser = User::factory()->create();
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id,
-    //         'status' => EventStatusEnum::DRAFT,
-    //         'is_published' => false
-    //     ]);
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->postJson(route('my-events.publish', $event->id));
 
-    //     // Act
-    //     $response = $this->actingAs($otherUser, 'api')
-    //         ->putJson("/api/events/{$event->id}/publish");
+        // Assert
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Please upload all required documents for your profile (e.g., KTP for Individual) before publishing.',
+                'errors' => [
+                    'action_required' => 'UPLOAD_DOCUMENTS'
+                ]
+            ]);
+    }
 
-    //     // Assert
-    //     $response->assertStatus(403)
-    //         ->assertJson([
-    //             'success' => false,
-    //             'message' => 'You are not authorized to publish this event.'
-    //         ]);
-    // }
+    /**
+     * US15: Test unauthorized user cannot publish
+     */
+    #[Test]
+    public function test_unauthorized_user_cannot_publish_event()
+    {
+        // Arrange
+        $otherUser = User::factory()->create();
+        $otherUser->assignRole('eo-owner');
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id,
+            'status' => EventStatusEnum::DRAFT,
+            'is_published' => false
+        ]);
 
-    // /**
-    //  * US15: Test cannot publish already published event
-    //  * @test
-    //  */
-    // public function test_cannot_publish_already_published_event()
-    // {
-    //     // Arrange
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id,
-    //         'status' => EventStatusEnum::ACTIVE,
-    //         'is_published' => true
-    //     ]);
+        // Act
+        $response = $this->actingAs($otherUser, 'sanctum')
+            ->postJson(route('my-events.publish', $event->id));
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->putJson("/api/events/{$event->id}/publish");
+        // Assert
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'You are not authorized to publish this event.'
+            ]);
+    }
 
-    //     // Assert
-    //     $response->assertStatus(400)
-    //         ->assertJson([
-    //             'success' => false,
-    //             'message' => 'Event is already published.'
-    //         ]);
-    // }
+    /**
+     * US15: Test cannot publish already published event
+     */
+    #[Test]
+    public function test_cannot_publish_already_published_event()
+    {
+        // Arrange
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id,
+            'status' => EventStatusEnum::ACTIVE,
+            'is_published' => true
+        ]);
 
-    // /**
-    //  * Test EO can view their own events
-    //  * @test
-    //  */
-    // public function test_eo_owner_can_view_their_events()
-    // {
-    //     // Arrange
-    //     Event::factory()->count(3)->create([
-    //         'eo_id' => $this->organizer->id
-    //     ]);
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->postJson(route('my-events.publish', $event->id));
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->getJson('/api/events');
+        // Assert
+        $response->assertStatus(400)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Event is already published.'
+            ]);
+    }
 
-    //     // Assert
-    //     $response->assertStatus(200)
-    //         ->assertJson([
-    //             'success' => true,
-    //             'message' => 'My events retrieved successfully.'
-    //         ])
-    //         ->assertJsonCount(3, 'data.data');
-    // }
+    /**
+     * Test EO can view their own events
+     */
+    #[Test]
+    public function test_eo_owner_can_view_their_events()
+    {
+        // Arrange
+        Event::factory()->count(3)->create([
+            'eo_id' => $this->organizer->id
+        ]);
 
-    // /**
-    //  * Test EO can view specific event detail
-    //  * @test
-    //  */
-    // public function test_eo_owner_can_view_event_detail()
-    // {
-    //     // Arrange
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id,
-    //         'name' => 'Test Event Detail'
-    //     ]);
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->getJson(route('my-events.index'));
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->getJson("/api/events/{$event->id}");
+        // Assert
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'My events retrieved successfully.'
+            ])
+            ->assertJsonCount(3, 'data.data');
+    }
 
-    //     // Assert
-    //     $response->assertStatus(200)
-    //         ->assertJson([
-    //             'success' => true,
-    //             'message' => 'Event retrieved successfully.',
-    //             'data' => [
-    //                 'name' => 'Test Event Detail'
-    //             ]
-    //         ]);
-    // }
+    /**
+     * Test EO can view specific event detail
+     */
+    #[Test]
+    public function test_eo_owner_can_view_event_detail()
+    {
+        // Arrange
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id,
+            'name' => 'Test Event Detail'
+        ]);
 
-    // /**
-    //  * Test EO cannot view other organizer's events
-    //  * @test
-    //  */
-    // public function test_eo_owner_cannot_view_other_organizer_events()
-    // {
-    //     // Arrange
-    //     $otherUser = User::factory()->create();
-    //     $otherOrganizer = EventOrganizer::factory()->create([
-    //         'eo_owner_id' => $otherUser->id
-    //     ]);
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $otherOrganizer->id
-    //     ]);
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->getJson(route('my-events.show', $event->id));
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->getJson("/api/events/{$event->id}");
+        // Assert
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Event retrieved successfully.',
+                'data' => [
+                    'name' => 'Test Event Detail'
+                ]
+            ]);
+    }
 
-    //     // Assert
-    //     $response->assertStatus(404)
-    //         ->assertJson([
-    //             'success' => false,
-    //             'message' => 'Event not found.'
-    //         ]);
-    // }
+    /**
+     * Test EO cannot view other organizer's events
+     */
+    #[Test]
+    public function test_eo_owner_cannot_view_other_organizer_events()
+    {
+        // Arrange
+        $otherUser = User::factory()->create();
+        $otherOrganizer = EventOrganizer::factory()->create([
+            'eo_owner_id' => $otherUser->id
+        ]);
+        $event = Event::factory()->create([
+            'eo_id' => $otherOrganizer->id
+        ]);
 
-    // /**
-    //  * Test updating draft event
-    //  * @test
-    //  */
-    // public function test_eo_owner_can_update_draft_event()
-    // {
-    //     // Arrange
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id,
-    //         'status' => EventStatusEnum::DRAFT,
-    //         'name' => 'Original Name'
-    //     ]);
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->getJson(route('my-events.show', $event->id));
 
-    //     $updateData = [
-    //         'name' => 'Updated Event Name',
-    //         'description' => 'Updated description'
-    //     ];
+        // Assert
+        $response->assertStatus(404)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Event not found.'
+            ]);
+    }
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->putJson("/api/events/{$event->id}", $updateData);
+    /**
+     * Test updating draft event
+     */
+    #[Test]
+    public function test_eo_owner_can_update_draft_event()
+    {
+        // Arrange
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id,
+            'status' => EventStatusEnum::DRAFT,
+            'name' => 'Original Name'
+        ]);
 
-    //     // Assert
-    //     $response->assertStatus(200)
-    //         ->assertJson([
-    //             'success' => true,
-    //             'message' => 'Event updated successfully'
-    //         ]);
+        $updateData = [
+            'name' => 'Updated Event Name',
+            'description' => 'Updated description'
+        ];
 
-    //     $this->assertDatabaseHas('events', [
-    //         'id' => $event->id,
-    //         'name' => 'Updated Event Name',
-    //         'description' => 'Updated description'
-    //     ]);
-    // }
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->putJson(route('my-events.update', $event->id), $updateData);
 
-    // /**
-    //  * Test cannot update published event
-    //  * @test
-    //  */
-    // public function test_cannot_update_published_event()
-    // {
-    //     // Arrange
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id,
-    //         'status' => EventStatusEnum::ACTIVE
-    //     ]);
+        // Assert
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Event updated successfully'
+            ]);
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->putJson("/api/events/{$event->id}", ['name' => 'New Name']);
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'name' => 'Updated Event Name',
+            'description' => 'Updated description'
+        ]);
+    }
 
-    //     // Assert
-    //     $response->assertStatus(403)
-    //         ->assertJson([
-    //             'message' => 'Only draft events can be updated'
-    //         ]);
-    // }
+    /**
+     * Test cannot update published event
+     */
+    #[Test]
+    public function test_cannot_update_published_event()
+    {
+        // Arrange
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id,
+            'status' => EventStatusEnum::ACTIVE
+        ]);
 
-    // /**
-    //  * Test deleting event
-    //  * @test
-    //  */
-    // public function test_eo_owner_can_delete_event()
-    // {
-    //     // Arrange
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id
-    //     ]);
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->putJson(route('my-events.update', $event->id), ['name' => 'New Name']);
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->deleteJson("/api/events/{$event->id}");
+        // Assert
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'Only draft events can be updated'
+            ]);
+    }
 
-    //     // Assert
-    //     $response->assertStatus(200)
-    //         ->assertJson([
-    //             'message' => 'Event deleted successfully'
-    //         ]);
+    /**
+     * Test deleting event
+     */
+    #[Test]
+    public function test_eo_owner_can_delete_event()
+    {
+        // Arrange
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id
+        ]);
 
-    //     $this->assertDatabaseMissing('events', [
-    //         'id' => $event->id
-    //     ]);
-    // }
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->deleteJson(route('my-events.destroy', $event->id));
 
-    // /**
-    //  * Test toggling event public status
-    //  * @test
-    //  */
-    // public function test_eo_owner_can_toggle_event_public_status()
-    // {
-    //     // Arrange
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id,
-    //         'is_published' => true,
-    //         'is_public' => false
-    //     ]);
+        // Assert
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Event deleted successfully'
+            ]);
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->putJson("/api/events/{$event->id}/public-status");
+        $this->assertDatabaseMissing('events', [
+            'id' => $event->id
+        ]);
+    }
 
-    //     // Assert
-    //     $response->assertStatus(200)
-    //         ->assertJson([
-    //             'success' => true,
-    //             'message' => 'Event visibility has been successfully changed to Public'
-    //         ]);
+    /**
+     * Test toggling event public status
+     */
+    #[Test]
+    public function test_eo_owner_can_toggle_event_public_status()
+    {
+        // Arrange
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id,
+            'is_published' => true,
+            'is_public' => false
+        ]);
 
-    //     $this->assertDatabaseHas('events', [
-    //         'id' => $event->id,
-    //         'is_public' => true
-    //     ]);
-    // }
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->postJson(route('my-events.public', $event->id));
 
-    // /**
-    //  * Test cannot toggle public status of unpublished event
-    //  * @test
-    //  */
-    // public function test_cannot_toggle_public_status_of_unpublished_event()
-    // {
-    //     // Arrange
-    //     $event = Event::factory()->create([
-    //         'eo_id' => $this->organizer->id,
-    //         'is_published' => false
-    //     ]);
+        // Assert
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Event visibility has been successfully changed to Public'
+            ]);
 
-    //     // Act
-    //     $response = $this->actingAs($this->user, 'api')
-    //         ->putJson("/api/events/{$event->id}/public-status");
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'is_public' => true
+        ]);
+    }
 
-    //     // Assert
-    //     $response->assertStatus(422)
-    //         ->assertJson([
-    //             'success' => false,
-    //             'message' => 'Only published events can be made public or private.'
-    //         ]);
-    // }
+    /**
+     * Test cannot toggle public status of unpublished event
+     */
+    #[Test]
+    public function test_cannot_toggle_public_status_of_unpublished_event()
+    {
+        // Arrange
+        $event = Event::factory()->create([
+            'eo_id' => $this->organizer->id,
+            'is_published' => false
+        ]);
+
+        // Act
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->postJson(route('my-events.public', $event->id));
+
+        // Assert
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Only published events can be made public or private.'
+            ]);
+    }
 }
