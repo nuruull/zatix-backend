@@ -14,18 +14,19 @@ class Order extends Model
 
     public $incrementing = false;
 
-    protected $fillable = ['user_id', 'event_id', 'net_amount', 'status', 'snap_token'];
+    protected $fillable = ['user_id', 'event_id', 'gross_amount', 'discount_amount', 'tax_amount', 'net_amount', 'status'];
 
     protected $casts = [
-        'net_amount' => 'integer',
         'status' => OrderStatusEnum::class,
     ];
 
-    public function user(){
+    public function user()
+    {
         return $this->belongsTo(User::class);
     }
 
-    public function event(){
+    public function event()
+    {
         return $this->belongsTo(Event::class);
     }
 
@@ -42,5 +43,11 @@ class Order extends Model
     public function eTickets()
     {
         return $this->hasMany(ETicket::class);
+    }
+
+    public function vouchers()
+    {
+        return $this->belongsToMany(Voucher::class, 'order_voucher')
+            ->withPivot('discount_amount');
     }
 }

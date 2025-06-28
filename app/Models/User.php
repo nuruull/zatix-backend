@@ -59,8 +59,8 @@ class User extends Authenticatable
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-        ->logOnly(['name', 'email'])
-        ->setDescriptionForEvent(fn(string $eventName) => "User has been {$eventName}");
+            ->logOnly(['name', 'email'])
+            ->setDescriptionForEvent(fn(string $eventName) => "User has been {$eventName}");
     }
 
     public function eventOrganizer()
@@ -88,7 +88,8 @@ class User extends Authenticatable
         return $this->morphMany(Document::class, 'documentableq');
     }
 
-    public function teams() {
+    public function teams()
+    {
         return $this->belongsToMany(EventOrganizer::class, 'event_organizer_user', 'eo_id', 'user_id');
     }
 
@@ -100,5 +101,10 @@ class User extends Authenticatable
     public function eTickets()
     {
         return $this->hasMany(ETicket::class);
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
     }
 }
