@@ -14,9 +14,11 @@ return new class extends Migration
         Schema::create('carousels', function (Blueprint $table) {
             $table->id();
             $table->string('image');
+            $table->string('title')->nullable();
             $table->string('caption')->nullable();
             $table->string('link_url')->nullable();
             $table->string('link_target')->default('_self');
+            $table->string('order')->default(0)->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
