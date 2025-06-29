@@ -1,22 +1,23 @@
 <?php
 
-use App\Http\Controllers\API\Events\EventPublicController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\Auth\AuthController;
 use App\Http\Controllers\API\TermAndConController;
-use App\Http\Controllers\API\Events\StaffController;
 use App\Http\Controllers\API\Events\EventController;
+use App\Http\Controllers\API\Events\StaffController;
 use App\Http\Controllers\API\Events\EventTncController;
 use App\Http\Controllers\API\Log\ActivityLogController;
 use App\Http\Controllers\API\Auth\NewPasswordController;
 use App\Http\Controllers\API\General\CarouselController;
 use App\Http\Controllers\API\Documents\DocumentController;
+use App\Http\Controllers\API\Events\EventPublicController;
+use App\Http\Controllers\API\Transactions\OrderController;
 use App\Http\Controllers\API\Facilities\FacilityController;
 use App\Http\Controllers\API\General\NotificationController;
 use App\Http\Controllers\API\Events\EventOrganizerController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
-use Illuminate\Support\Facades\Auth;
 
 
 /*
@@ -176,11 +177,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->name('tnc.')
         ->middleware(['role:super-admin'])
         ->group(function () {
-            // Route::middleware(['permission:view-any-tnc'])->get('/', [TermAndConController::class, 'index'])->name('index');
-            // Route::middleware(['permission:view-latest-tnc'])->get('/{type}/latest', [TermAndConController::class, 'latestByType'])->name('latest');
-            // Route::middleware(['permission:create-tnc'])->post('/', [TermAndConController::class, 'store'])->name('store');
-            // Route::middleware(['permission:update-tnc'])->put('/{id}', [TermAndConController::class, 'update'])->name('update');
-            // Route::middleware(['permission:delete-tnc'])->delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
             Route::get('/', [TermAndConController::class, 'index'])->name('index');
             Route::get('/{type}/latest', [TermAndConController::class, 'latestByType'])->name('latest');
             Route::post('/', [TermAndConController::class, 'store'])->name('store');
@@ -202,18 +198,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     //create endpoint for activity log
     Route::middleware(['can:view-activity-logs'])->get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
+
+    Route::prefix('orders')
+        ->name('prefixs.')
+        ->middleware(['role:customer'])
+        ->group(function () {
+            Route::post('/create', [OrderController::class, 'store'])->name('store');
+        });
 });
-
-
-// Route::get('/me', function () {
-//     $user = auth()->user();
-//     return [
-//         'user' => $user->email,
-//         'roles' => $user->getRoleNames(),
-//         'permissions' => $user->getAllPermissions()->pluck('name'),
-//         'can_publish' => $user->can('view-any-carousels'),
-//     ];
-// })->middleware('auth:sanctum');
 
 Route::get('/reset-database', function () {
     if (config('app.env') !== 'local' || config('app.debug') !== true) {
