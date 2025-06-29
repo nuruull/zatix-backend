@@ -3,29 +3,18 @@
 namespace App\Http\Controllers\API\General;
 
 use App\Models\Carousel;
+use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\Request;
 use App\Traits\ManageFileTrait;
-use Illuminate\Routing\ControllerMiddlewareOptions;
 use Illuminate\Support\Facades\Log;
 use App\Enum\Type\LinkTargetTypeEnum;
 use Illuminate\Validation\Rules\Enum;
 use App\Http\Controllers\BaseController;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Routing\Controllers\Middleware;
 
 class CarouselController extends BaseController
 {
     use ManageFileTrait;
-
-    // public function __construct()
-    // {
-    //     // Parameter pertama adalah nama middleware, lalu diikuti method only/except
-    //     $this->middleware('permission:view-any-carousels')->only('getCarouselList');
-    //     $this->middleware('permission:view-carousel')->only('show');
-    //     $this->middleware('permission:create-carousel')->only('store');
-    //     $this->middleware('permission:update-carousel')->only('update');
-    //     $this->middleware('permission:delete-carousel')->only('destroy');
-    // }
 
     //PUBLIC
     public function index()
@@ -242,7 +231,6 @@ class CarouselController extends BaseController
             }
 
             return $this->sendResponse(
-                $carousel,
                 'Carousel item deleted successfully',
                 200
             );

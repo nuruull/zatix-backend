@@ -194,10 +194,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->middleware(['role:super-admin'])
         ->group(function () {
             Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->name('get-carousel-list');
-            Route::post('/', [CarouselController::class, 'store'])->name('store');
+            Route::post('/create', [CarouselController::class, 'store'])->name('store');
             Route::get('/{id}', [CarouselController::class, 'show'])->name('show');
             Route::put('/{id}', [CarouselController::class, 'update'])->name('update');
-            Route::delete('/{id}', [CarouselController::class, 'destroy'])->name('destroy');
+            Route::delete('/{id}/destroy', [CarouselController::class, 'destroy'])->name('destroy');
         });
 
     //create endpoint for activity log

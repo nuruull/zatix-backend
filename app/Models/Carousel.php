@@ -13,7 +13,7 @@ class Carousel extends Model
     // add commit carousel model
     use HasFactory, LogsActivity;
 
-    protected $fillable = ['image', 'caption', 'link_url', 'link_target', 'is_active'];
+    protected $fillable = ['image', 'title', 'caption', 'link_url', 'link_target', 'order', 'is_active'];
 
     protected function casts(): array
     {

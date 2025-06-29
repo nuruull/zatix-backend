@@ -21,6 +21,8 @@ class DatabaseSeeder extends Seeder
             EventOrganizerSeeder::class,
             DocumentSeeder::class,
             EventSeeder::class,
+            CarouselSeeder::class,
+            StaffSeeder::class,
         ]);
     }
 }
