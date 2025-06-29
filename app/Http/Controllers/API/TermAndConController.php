@@ -137,6 +137,6 @@ class TermAndConController extends BaseController
                 $e->getMessage(),
                 500
             );
-        }   
+        }
     }
 }
