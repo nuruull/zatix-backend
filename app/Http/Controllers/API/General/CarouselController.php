@@ -17,15 +17,15 @@ class CarouselController extends BaseController
 {
     use ManageFileTrait;
 
-    public function __construct()
-    {
-        // Parameter pertama adalah nama middleware, lalu diikuti method only/except
-        $this->middleware('permission:view-any-carousels')->only('getCarouselList');
-        $this->middleware('permission:view-carousel')->only('show');
-        $this->middleware('permission:create-carousel')->only('store');
-        $this->middleware('permission:update-carousel')->only('update');
-        $this->middleware('permission:delete-carousel')->only('destroy');
-    }
+    // public function __construct()
+    // {
+    //     // Parameter pertama adalah nama middleware, lalu diikuti method only/except
+    //     $this->middleware('permission:view-any-carousels')->only('getCarouselList');
+    //     $this->middleware('permission:view-carousel')->only('show');
+    //     $this->middleware('permission:create-carousel')->only('store');
+    //     $this->middleware('permission:update-carousel')->only('update');
+    //     $this->middleware('permission:delete-carousel')->only('destroy');
+    // }
 
     //PUBLIC
     public function index()

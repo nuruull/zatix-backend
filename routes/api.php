@@ -191,6 +191,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     //commit carousel api to git
     Route::prefix('carousels')
         ->name('carousels.')
+        ->middleware(['role:super-admin'])
         ->group(function () {
             Route::get('/all-carousel-list', [CarouselController::class, 'getCarouselList'])->name('get-carousel-list');
             Route::post('/', [CarouselController::class, 'store'])->name('store');
