@@ -201,7 +201,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('orders')
         ->name('prefixs.')
-        ->middleware(['role:customer'])
         ->group(function () {
             Route::post('/create', [OrderController::class, 'store'])->name('store');
         });

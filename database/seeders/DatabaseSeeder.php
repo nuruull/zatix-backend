@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
             EventSeeder::class,
             CarouselSeeder::class,
             StaffSeeder::class,
+            PaymentMethodSeeder::class,
+            VoucherSeeder::class,
         ]);
     }
 }
