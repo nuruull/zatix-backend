@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('code');
             $table->string('discount_type'); //percentage, fixed
+            $table->string('discount_value');
             $table->unsignedBigInteger('max_amount');
             $table->integer('usage_limit');
             $table->dateTime('valid_until');

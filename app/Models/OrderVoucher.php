@@ -10,5 +10,5 @@ class OrderVoucher extends Model
 {
     use HasFactory, HasVersion4Uuids;
 
-    protected $fillable = ['voucher_id', 'order_id', 'discount_amount'];
+    protected $fillable = ['voucher_id', 'order_id', 'discount_amount_applied'];
 }
