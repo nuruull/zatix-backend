@@ -8,9 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
-    use HasFactory, HasVersion4Uuids;
+    use HasFactory;
 
     protected $fillable = ['order_id', 'ticket_id', 'quantity', 'price', 'discount', 'subtotal'];
+
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $casts = [
         'quantity' => 'integer',

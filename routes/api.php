@@ -200,9 +200,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware(['can:view-activity-logs'])->get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
 
     Route::prefix('orders')
-        ->name('prefixs.')
+        ->name('orders.')
         ->group(function () {
-            Route::post('/create', [OrderController::class, 'store'])->name('store');
+            Route::post('/', [OrderController::class, 'store'])->name('store');
         });
 });
 
