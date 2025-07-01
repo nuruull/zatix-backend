@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Enum\Status\OrderStatusEnum;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids;
 
 class Order extends Model
 {
