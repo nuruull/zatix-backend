@@ -18,6 +18,7 @@ use App\Http\Controllers\API\Facilities\FacilityController;
 use App\Http\Controllers\API\General\NotificationController;
 use App\Http\Controllers\API\Events\EventOrganizerController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
+use App\Http\Controllers\API\Transactions\MidtransWebhookController;
 
 
 /*
@@ -64,6 +65,8 @@ Route::prefix('carousels')
     ->group(function () {
         Route::get('/', [CarouselController::class, 'index'])->name('index');
     });
+
+Route::post('/webhooks/midtrans', [MidtransWebhookController::class, 'handle'])->name('webhooks.midtrans');
 
 Route::get('/debug-permissions', function () {
     // Pastikan Anda mengirim token Bearer di header saat memanggil endpoint ini
