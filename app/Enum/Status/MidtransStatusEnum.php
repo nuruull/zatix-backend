@@ -2,7 +2,7 @@
 
 namespace App\Enum\Status;
 
-enum MidtransStatusEnum
+enum MidtransStatusEnum: string
 {
     case SETTLEMENT = 'settlement';
     case CAPTURE = 'capture';
