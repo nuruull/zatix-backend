@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\ETicket;
 use App\Enum\Status\OrderStatusEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
