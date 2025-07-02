@@ -28,7 +28,7 @@ class Carousel extends Model
     public function getImageUrlAttribute(): ?string
     {
         if ($this->image) {
-            return Storage::url($this->image);
+            return url(Storage::url($this->image));
         }
         return null;
     }
