@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use Spatie\Activitylog\LogOptions;
 use App\Enum\Type\LinkTargetTypeEnum;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Spatie\Activitylog\LogOptions;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Carousel extends Model
 {
@@ -15,11 +16,21 @@ class Carousel extends Model
 
     protected $fillable = ['image', 'title', 'caption', 'link_url', 'link_target', 'order', 'is_active'];
 
+    protected $appends = ['image_url'];
+
     protected function casts(): array
     {
         return [
             'link_target' => LinkTargetTypeEnum::class,
         ];
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        if ($this->image) {
+            return Storage::url($this->image);
+        }
+        return null;
     }
 
     //create log acativity for carousel model
