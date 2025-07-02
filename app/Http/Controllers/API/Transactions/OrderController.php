@@ -79,8 +79,8 @@ class OrderController extends BaseController
                     if ($voucher) {
                         if ($voucher->discount_type === 'percentage') {
                             $discountAmount = ($grossAmount * $voucher->discount_value) / 100;
-                            if ($voucher->max_discount_amount && $discountAmount > $voucher->max_discount_amount) {
-                                $discountAmount = $voucher->max_discount_amount;
+                            if ($voucher->max_amount && $discountAmount > $voucher->max_amount) {
+                                $discountAmount = $voucher->max_amount;
                             }
                         } else {
                             $discountAmount = $voucher->discount_value;
