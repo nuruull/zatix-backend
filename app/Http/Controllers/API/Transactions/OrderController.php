@@ -6,6 +6,7 @@ use Auth;
 
 use Midtrans\Snap;
 use App\Models\User;
+use App\Models\Event;
 use App\Models\Order;
 use Midtrans\CoreApi;
 use App\Models\Ticket;
@@ -62,6 +63,13 @@ class OrderController extends BaseController
                     ];
                     if (is_null($eventId))
                         $eventId = $ticket->event_id;
+                }
+
+                $event = Event::find($eventId);
+                if (!$event || !$event->is_published) {
+                    throw ValidationException::withMessages([
+                        'event' => 'This event is not available for ticket purchase at the moment.'
+                    ]);
                 }
 
                 $discountAmount = 0;
