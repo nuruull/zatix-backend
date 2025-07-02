@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use App\Enum\Status\OrderStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Enum\Status\MidtransStatusEnum;
+use App\Models\ETicket;
 
 class MidtransWebhookController extends Controller
 {
@@ -38,7 +39,7 @@ class MidtransWebhookController extends Controller
 
             // 3. Update status pesanan jika ada status baru yang relevan
             if ($orderStatus) {
-                $this->updateOrderStatus($orderId, $orderStatus);
+                $this->updateOrderStatus($orderId, $orderStatus, $transactionStatus);
             }
 
             return response()->json(['message' => 'Notification processed successfully.']);
@@ -55,33 +56,43 @@ class MidtransWebhookController extends Controller
     /**
      * Mengupdate status pesanan dan menjalankan aksi terkait (misal: buat e-ticket).
      */
-    protected function updateOrderStatus(string $orderId, OrderStatusEnum $orderStatus): void
+    protected function updateOrderStatus(string $orderId, OrderStatusEnum $orderStatus, string $midtransStatus): void
     {
-        // Gunakan transaksi untuk memastikan semua operasi berhasil atau tidak sama sekali
-        DB::transaction(function () use ($orderId, $orderStatus) {
-            // Lock baris untuk mencegah race condition saat notifikasi datang hampir bersamaan
+        DB::transaction(function () use ($orderId, $orderStatus, $midtransStatus) {
+            // --- PERBAIKAN 2: Pastikan pencarian menggunakan kolom 'id' ---
             $order = Order::where('id', $orderId)->lockForUpdate()->first();
 
-            // Hanya proses jika order ada dan statusnya belum lunas (mencegah proses ganda)
-            if ($order && $order->status !== OrderStatusEnum::PAID->value) {
+            if (!$order) {
+                // Tambahkan log yang sangat jelas jika order tidak ditemukan
+                Log::warning("Midtrans Webhook: Order with ID [{$orderId}] NOT FOUND in database. Please check if this UUID exists in your 'orders' table.");
+                return;
+            }
 
-                $order->update(['status' => $orderStatus->value]);
+            if ($order->status === OrderStatusEnum::PAID) {
+                Log::info("Midtrans Webhook: Order [{$orderId}] is already PAID. Ignoring notification.");
+                return;
+            }
 
-                // Update juga status di tabel 'transactions'
+            Log::info("Midtrans Webhook: Order [{$orderId}] - Updating order status from [{$order->status->value}] to [{$orderStatus->value}].");
+            $order->update(['status' => $orderStatus->value]);
+
+            // --- PERBAIKAN 1: Logika update status transaksi ---
+            // Hanya update status transaksi jika pembayaran berhasil.
+            if ($orderStatus === OrderStatusEnum::PAID) {
                 $order->transactions()->where('status', '!=', 'settlement')->update(['status' => 'settlement']);
 
-                // Jika pembayaran berhasil (LUNAS)
-                if ($orderStatus === OrderStatusEnum::PAID) {
-                    $this->generateETicketsForOrder($order);
-                    // Kirim notifikasi email ke user bahwa pembayaran berhasil
-                    // $order->user->notify(new PaymentSuccessNotification($order));
-                }
-                // Jika pesanan dibatalkan atau kadaluarsa
-                elseif (in_array($orderStatus, [OrderStatusEnum::CANCELLED, OrderStatusEnum::EXPIRED])) {
-                    // Kembalikan stok tiket
-                    foreach ($order->orderItems as $item) {
-                        $item->ticket()->increment('stock', $item->quantity);
-                    }
+                Log::info("Midtrans Webhook: Order [{$orderId}] - Generating e-tickets...");
+                $this->generateETicketsForOrder($order);
+                Log::info("Midtrans Webhook: Order [{$orderId}] - E-tickets generated.");
+
+                // $order->user->notify(new PaymentSuccessNotification($order));
+            } elseif (in_array($orderStatus, [OrderStatusEnum::CANCELLED, OrderStatusEnum::EXPIRED])) {
+                // Update status transaksi menjadi sama dengan status Midtrans
+                $order->transactions()->update(['status' => $midtransStatus]);
+
+                Log::info("Midtrans Webhook: Order [{$orderId}] - Restoring ticket stock.");
+                foreach ($order->orderItems as $item) {
+                    $item->ticket()->increment('stock', $item->quantity);
                 }
             }
         });
