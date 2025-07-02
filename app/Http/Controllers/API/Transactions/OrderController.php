@@ -73,20 +73,30 @@ class OrderController extends BaseController
                 }
 
                 $discountAmount = 0;
-                $voucherId = null;
+                $voucherToUse = null; // Variabel untuk menyimpan objek voucher yang valid
+
                 if (!empty($validated['voucher_code'])) {
-                    $voucher = Voucher::where('code', $validated['voucher_code'])->first();
-                    if ($voucher) {
-                        if ($voucher->discount_type === 'percentage') {
-                            $discountAmount = ($grossAmount * $voucher->discount_value) / 100;
-                            if ($voucher->max_amount && $discountAmount > $voucher->max_amount) {
-                                $discountAmount = $voucher->max_amount;
-                            }
-                        } else {
-                            $discountAmount = $voucher->discount_value;
-                        }
-                        $voucherId = $voucher->id;
+                    $voucher = Voucher::where('code', $validated['voucher_code'])
+                        ->lockForUpdate() // Kunci baris untuk mencegah race condition
+                        ->first();
+
+                    // Lakukan validasi lengkap terhadap voucher
+                    if (!$voucher || !$voucher->is_active || $voucher->valid_until->isPast() || $voucher->usage_limit <= 0) {
+                        throw ValidationException::withMessages([
+                            'voucher_code' => 'The provided voucher code is invalid, expired, or has reached its usage limit.'
+                        ]);
                     }
+
+                    // Jika voucher valid, hitung diskon
+                    if ($voucher->discount_type === 'percentage') {
+                        $discountAmount = ($grossAmount * $voucher->discount_value) / 100;
+                        if ($voucher->max_amount && $discountAmount > $voucher->max_amount) {
+                            $discountAmount = $voucher->max_amount;
+                        }
+                    } else {
+                        $discountAmount = $voucher->discount_value;
+                    }
+                    $voucherToUse = $voucher; // Simpan objek voucher untuk digunakan nanti
                 }
 
                 $netAmount = $grossAmount - $discountAmount;
@@ -105,8 +115,9 @@ class OrderController extends BaseController
 
                 $order->orderItems()->createMany($orderItemsPayload);
 
-                if ($voucherId) {
-                    $order->vouchers()->attach($voucherId, ['discount_amount_applied' => $discountAmount]);
+                if ($voucherToUse) {
+                    $order->vouchers()->attach($voucherToUse->id, ['discount_amount_applied' => $discountAmount]);
+                    $voucherToUse->decrement('usage_limit');
                 }
 
                 foreach ($order->orderItems as $item) {
