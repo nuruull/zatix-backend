@@ -4,18 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids;
 
 class ETicket extends Model
 {
-    use HasFactory, HasVersion4Uuids;
+    use HasFactory;
 
     protected $table = 'e_tickets';
+
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = ['ticket_code', 'order_id', 'user_id', 'ticket_id', 'attendee_name', 'checked_in_at',];
 
     protected $casts = [
-        'checked_in_at'=> 'datetime',
+        'checked_in_at' => 'datetime',
     ];
 
     public function order()
