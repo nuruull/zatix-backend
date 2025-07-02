@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Carousel;
 use Illuminate\Database\Seeder;
 use App\Enum\Type\LinkTargetTypeEnum;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
 class CarouselSeeder extends Seeder
@@ -15,10 +16,11 @@ class CarouselSeeder extends Seeder
     public function run(): void
     {
         Carousel::truncate();
+        Storage::disk('public')->deleteDirectory('carousels');
+        Storage::disk('public')->makeDirectory('carousels');
 
-        $carousels=[
+        $carousels = [
             [
-                'image' => 'carousels/sample1.jpg', // Path placeholder untuk gambar
                 'title' => 'Diskon Spesial Musim Panas',
                 'caption' => 'Nikmati potongan harga hingga 50% untuk semua produk fashion.',
                 'link_url' => 'https://google.com',
@@ -27,7 +29,6 @@ class CarouselSeeder extends Seeder
                 'is_active' => true,
             ],
             [
-                'image' => 'carousels/sample2.jpg',
                 'title' => 'Koleksi Terbaru Telah Tiba',
                 'caption' => 'Jelajahi koleksi terbaru kami yang elegan dan modern.',
                 'link_url' => 'https://google.com',
@@ -36,7 +37,6 @@ class CarouselSeeder extends Seeder
                 'is_active' => true,
             ],
             [
-                'image' => 'carousels/sample3.jpg',
                 'title' => 'Acara Komunitas Berikutnya',
                 'caption' => 'Segera hadir, jangan sampai ketinggalan!',
                 'link_url' => null, // Tidak ada link
@@ -45,7 +45,6 @@ class CarouselSeeder extends Seeder
                 'is_active' => true,
             ],
             [
-                'image' => 'carousels/sample4.jpg',
                 'title' => 'Carousel Non-Aktif',
                 'caption' => 'Ini adalah contoh carousel yang tidak akan ditampilkan.',
                 'link_url' => null,
@@ -55,8 +54,29 @@ class CarouselSeeder extends Seeder
             ],
         ];
 
-        foreach ($carousels as $item) {
-            Carousel::create($item);
+        foreach ($carousels as $index => $item) {
+            // 2. Buat nama file dan path tujuan
+            $filename = 'sample-' . ($index + 1) . '.jpg';
+            $path = 'carousels/' . $filename;
+
+            try {
+                // 3. Ambil konten gambar dari URL (menggunakan picsum.photos untuk gambar acak)
+                $imageUrl = 'https://picsum.photos/2048/1152?random=' . ($index + 1);
+                $imageContent = file_get_contents($imageUrl);
+
+                // 4. Simpan gambar ke storage publik Anda
+                Storage::disk('public')->put($path, $imageContent);
+
+                // 5. Buat entri database dengan path gambar yang sudah disimpan
+                Carousel::create(array_merge($item, [
+                    'image' => $path, // Simpan path relatif: 'carousels/sample-1.jpg'
+                ]));
+
+            } catch (\Exception $e) {
+                // Jika gagal mengunduh, log error dan lanjutkan tanpa membuat record
+                $this->command->error("Gagal mengunduh gambar untuk carousel: " . $item['title'] . ". Error: " . $e->getMessage());
+            }
         }
+
     }
 }
