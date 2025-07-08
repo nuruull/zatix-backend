@@ -144,12 +144,19 @@ class StaffController extends BaseController
 
             DB::commit();
 
+            $responseData = [
+                'name' => $newStaff->name,
+                'email' => $newStaff->email,
+                'role' => $newStaff->getRoleNames()->first(),
+            ];
+
+            // HANYA tambahkan password ke respons jika environment adalah 'local' atau 'testing'
+            if (app()->isLocal() || app()->runningUnitTests()) {
+                $responseData['temporary_password_for_testing'] = $temporaryPassword;
+            }
+
             return $this->sendResponse(
-                [
-                    'name' => $newStaff->name,
-                    'email' => $newStaff->email,
-                    'role' => $newStaff->getRoleNames()->first(),
-                ],
+                $responseData,
                 'Staff member created successfully. An email has been sent to them to set up their password.',
                 201
             );
