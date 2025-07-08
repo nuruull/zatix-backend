@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Api\Event;
+namespace Tests\Feature\API\Event;
 
 use Tests\TestCase;
 use App\Models\User;
