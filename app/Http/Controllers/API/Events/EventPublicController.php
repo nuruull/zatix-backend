@@ -20,7 +20,12 @@ class EventPublicController extends BaseController
 
     public function show(Event $event)
     {
-        $event->load(['facilities', 'tickets', 'eventOrganizer']);
-        return $this->sendResponse($event, 'Event retrieved successfully.');
+        if ($event->is_published && $event->is_public) {
+
+            $event->load(['facilities', 'tickets', 'eventOrganizer']);
+
+            return $this->sendResponse($event, 'Event retrieved successfully.');
+        }
+        return $this->sendError('Event not found.', [], 404);
     }
 }

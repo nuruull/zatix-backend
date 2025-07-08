@@ -48,11 +48,7 @@ class EventTncController extends BaseController
         }
 
         if (auth()->user()->tncStatuses()->where('tnc_id', $eventTnc->id)->exists()) {
-            return $this->sendError(
-                'You have agreed to this TNC',
-                [],
-                409
-            );
+            return $this->sendResponse([], 'TNC already accepted and ready to use.');
         }
 
         TncStatus::create([
