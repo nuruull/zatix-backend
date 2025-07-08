@@ -2,19 +2,20 @@
 
 namespace Tests\Feature\API\Transactions;
 
+use Mockery;
 use Tests\TestCase;
 use App\Models\Bank;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\Order;
+use Midtrans\CoreApi;
 use App\Models\Ticket;
 use App\Models\Voucher;
-use Midtrans\CoreApi;
+use Laravel\Sanctum\Sanctum;
 use App\Models\PaymentMethod;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
-use Mockery;
 use PHPUnit\Framework\Attributes\Test;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class OrderControllerTest extends TestCase
 {
@@ -70,25 +71,24 @@ class OrderControllerTest extends TestCase
         // --- MOCKING ---
         // Kita "memalsukan" Midtrans\CoreApi.
         // Kita tidak ingin benar-benar mengirim request ke Midtrans saat testing.
-        $this->mock(CoreApi::class, function ($mock) {
-            $mock->shouldReceive('charge')
-                ->once() // Harapannya method charge akan dipanggil 1x
-                ->andReturn((object) [ // dan akan mengembalikan object response palsu ini
-                    'transaction_id' => 'dummy-transaction-id',
-                    'order_id' => 'some-uuid-from-db', // akan diisi oleh order->id
-                    'transaction_status' => 'pending',
-                    'payment_type' => 'bank_transfer',
-                    'va_numbers' => [
-                        ['bank' => 'bca', 'va_number' => '1234567890']
-                    ],
-                    'expiry_time' => now()->addDay()->toDateTimeString(),
-                ]);
-        });
+        Mockery::mock('alias:' . CoreApi::class)
+            ->shouldReceive('charge') // Sekarang kita bisa set ekspektasi pada panggilan statis
+            ->once()
+            ->andReturn((object) [
+                'transaction_id' => 'dummy-transaction-id',
+                'order_id' => 'some-uuid-from-db',
+                'transaction_status' => 'pending',
+                'payment_type' => 'bank_transfer',
+                'va_numbers' => [
+                    ['bank' => 'bca', 'va_number' => '1234567890']
+                ],
+                'expiry_time' => now()->addDay()->toDateTimeString(),
+            ]);
 
         // --- ACT ---
         // Jalankan request ke endpoint
-        $response = $this->actingAs($this->user)->postJson('/api/v1/orders', $payload);
-
+        Sanctum::actingAs($this->user);
+        $response = $this->postJson('/api/orders', $payload);
         // --- ASSERT ---
         // Verifikasi respons
         $response->assertStatus(200)
@@ -151,12 +151,14 @@ class OrderControllerTest extends TestCase
         ];
 
         // --- MOCKING ---
-        $this->mock(CoreApi::class, function ($mock) {
-            $mock->shouldReceive('charge')->once()->andReturn((object) ['transaction_id' => 'dummy-id', 'va_numbers' => [['va_number' => '123']], 'expiry_time' => now()]);
-        });
+        Mockery::mock('alias:' . CoreApi::class)
+            ->shouldReceive('charge')
+            ->once()
+            ->andReturn((object) ['transaction_id' => 'dummy-id', 'va_numbers' => [['va_number' => '123']], 'expiry_time' => now()]);
 
         // --- ACT ---
-        $response = $this->actingAs($this->user)->postJson('/api/v1/orders', $payload);
+        Sanctum::actingAs($this->user);
+        $response = $this->postJson('/api/orders', $payload);
 
         // --- ASSERT ---
         $response->assertStatus(200);
@@ -182,9 +184,9 @@ class OrderControllerTest extends TestCase
         ]);
     }
 
-    /**
-     * Pesanan gagal jika stok tiket tidak mencukupi.
-     */
+    // /**
+    //  * Pesanan gagal jika stok tiket tidak mencukupi.
+    //  */
     #[Test]
     public function order_fails_if_ticket_stock_is_insufficient()
     {
@@ -199,7 +201,8 @@ class OrderControllerTest extends TestCase
         ];
 
         // --- ACT ---
-        $response = $this->actingAs($this->user)->postJson('/api/v1/orders', $payload);
+        Sanctum::actingAs($this->user);
+        $response = $this->postJson('/api/orders', $payload);
 
         // --- ASSERT ---
         $response->assertStatus(422) // Harusnya error validasi
@@ -212,9 +215,9 @@ class OrderControllerTest extends TestCase
         $this->assertDatabaseHas('tickets', ['id' => $this->ticket->id, 'stock' => 1]);
     }
 
-    /**
-     * Pesanan gagal jika menggunakan voucher yang tidak valid.
-     */
+    // /**
+    //  * Pesanan gagal jika menggunakan voucher yang tidak valid.
+    //  */
     #[Test]
     public function order_fails_if_voucher_is_invalid()
     {
@@ -233,7 +236,8 @@ class OrderControllerTest extends TestCase
         ];
 
         // --- ACT ---
-        $response = $this->actingAs($this->user)->postJson('/api/v1/orders', $payload);
+        Sanctum::actingAs($this->user);
+        $response = $this->postJson('/api/orders', $payload);
 
         // --- ASSERT ---
         $response->assertStatus(422)

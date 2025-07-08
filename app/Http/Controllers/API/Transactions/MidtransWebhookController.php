@@ -20,21 +20,24 @@ class MidtransWebhookController extends Controller
     public function handle(Request $request)
     {
         try {
+            $payload = $request->all();
+
             // 1. Validasi Signature Key (Sangat Penting untuk Keamanan)
-            $notification = new \Midtrans\Notification();
+            $orderId = $payload['order_id'];
+            $statusCode = $payload['status_code'];
+            $grossAmount = $payload['gross_amount'];
+            $serverKey = config('midtrans.server_key');
 
-            $orderId = $notification->order_id;
-            $transactionStatus = $notification->transaction_status;
-            $fraudStatus = $notification->fraud_status ?? null;
+            $signatureKey = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
 
-            // Validasi hash
-            $signatureKey = hash('sha512', $orderId . $notification->status_code . $notification->gross_amount . config('midtrans.server_key'));
-            if ($signatureKey !== $notification->signature_key) {
+            if ($signatureKey !== $payload['signature_key']) {
                 Log::warning('Midtrans Webhook: Invalid signature.', ['order_id' => $orderId]);
                 return response()->json(['message' => 'Invalid signature'], 403);
             }
 
             // 2. Dapatkan status internal dari status Midtrans
+            $transactionStatus = $payload['transaction_status'];
+            $fraudStatus = $payload['fraud_status'] ?? null;
             $orderStatus = MidtransStatusEnum::getOrderStatus($transactionStatus, $fraudStatus);
 
             // 3. Update status pesanan jika ada status baru yang relevan
@@ -59,12 +62,10 @@ class MidtransWebhookController extends Controller
     protected function updateOrderStatus(string $orderId, OrderStatusEnum $orderStatus, string $midtransStatus): void
     {
         DB::transaction(function () use ($orderId, $orderStatus, $midtransStatus) {
-            // --- PERBAIKAN 2: Pastikan pencarian menggunakan kolom 'id' ---
             $order = Order::where('id', $orderId)->lockForUpdate()->first();
 
             if (!$order) {
-                // Tambahkan log yang sangat jelas jika order tidak ditemukan
-                Log::warning("Midtrans Webhook: Order with ID [{$orderId}] NOT FOUND in database. Please check if this UUID exists in your 'orders' table.");
+                Log::warning("Midtrans Webhook: Order with ID [{$orderId}] NOT FOUND in database.");
                 return;
             }
 
@@ -76,8 +77,6 @@ class MidtransWebhookController extends Controller
             Log::info("Midtrans Webhook: Order [{$orderId}] - Updating order status from [{$order->status->value}] to [{$orderStatus->value}].");
             $order->update(['status' => $orderStatus->value]);
 
-            // --- PERBAIKAN 1: Logika update status transaksi ---
-            // Hanya update status transaksi jika pembayaran berhasil.
             if ($orderStatus === OrderStatusEnum::PAID) {
                 $order->transactions()->where('status', '!=', 'settlement')->update(['status' => 'settlement']);
 
@@ -85,9 +84,7 @@ class MidtransWebhookController extends Controller
                 $this->generateETicketsForOrder($order);
                 Log::info("Midtrans Webhook: Order [{$orderId}] - E-tickets generated.");
 
-                // $order->user->notify(new PaymentSuccessNotification($order));
             } elseif (in_array($orderStatus, [OrderStatusEnum::CANCELLED, OrderStatusEnum::EXPIRED])) {
-                // Update status transaksi menjadi sama dengan status Midtrans
                 $order->transactions()->update(['status' => $midtransStatus]);
 
                 Log::info("Midtrans Webhook: Order [{$orderId}] - Restoring ticket stock.");
@@ -105,12 +102,11 @@ class MidtransWebhookController extends Controller
     {
         foreach ($order->orderItems as $item) {
             for ($i = 0; $i < $item->quantity; $i++) {
-                // Buat record e-ticket baru
                 $order->eTickets()->create([
                     'user_id' => $order->user_id,
                     'ticket_id' => $item->ticket_id,
-                    'ticket_code' => Str::upper('ZTX-' . Str::random(12)), // Generate kode unik
-                    'attendee_name' => $order->user->name, // Default, bisa diubah nanti oleh user
+                    'ticket_code' => Str::upper('ZTX-' . Str::random(12)),
+                    'attendee_name' => $order->user->name,
                 ]);
             }
         }
