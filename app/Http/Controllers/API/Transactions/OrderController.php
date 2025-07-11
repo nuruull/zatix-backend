@@ -129,15 +129,15 @@ class OrderController extends BaseController
 
             // --- PERBAIKAN LOGIKA UTAMA ADA DI SINI ---
             $chargePayload = $this->prepareMidtransPayload($order, $paymentMethod, $user);
-            // $midtransResponse = CoreApi::charge($chargePayload);
+            $midtransResponse = CoreApi::charge($chargePayload);
 
             //for jmeter testing -> comment $midtransResponse before
-            $midtransResponse = json_decode(
-                \Illuminate\Support\Facades\Http::post(
-                    url('/api/mock/charge'), // Panggil mock endpoint lokal
-                    $chargePayload
-                )->body()
-            );
+            // $midtransResponse = json_decode(
+            //     \Illuminate\Support\Facades\Http::post(
+            //         url('/api/mock/charge'), // Panggil mock endpoint lokal
+            //         $chargePayload
+            //     )->body()
+            // );
 
             $this->createTransactionRecords($order, $midtransResponse, $paymentMethod->id);
 
