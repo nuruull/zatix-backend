@@ -45,7 +45,6 @@ Route::get('test', function () {
     dd('hello');
 });
 
-// Route::group(['middleware' => 'cors'], function () {
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
@@ -68,8 +67,25 @@ Route::prefix('carousels')
 
 Route::post('/webhooks/midtrans', [MidtransWebhookController::class, 'handle'])->name('webhooks.midtrans');
 
+//membuat sebuah endpoint di aplikasi Laravel Anda yang meniru respons sukses dari Midtrans secepat mungkin.
+Route::post('/mock/charge', function () {
+    // Endpoint ini meniru respons sukses dari Midtrans secepat mungkin.
+    // Tidak ada logika, hanya mengembalikan JSON.
+    return response()->json([
+        'transaction_id' => 'mock-tx-' . uniqid(),
+        'order_id' => request('transaction_details.order_id', 'mock-order-' . uniqid()),
+        'status_code' => '200',
+        'transaction_status' => 'pending',
+        'payment_type' => 'bank_transfer',
+        'gross_amount' => request('transaction_details.gross_amount', '100000.00'),
+        'va_numbers' => [
+            ['bank' => 'bca', 'va_number' => '1234567890']
+        ],
+        'expiry_time' => now()->addDay()->toDateTimeString(),
+    ]);
+});
+
 Route::get('/debug-permissions', function () {
-    // Pastikan Anda mengirim token Bearer di header saat memanggil endpoint ini
     if (Auth::check()) {
         $user = Auth::user();
         return response()->json([
