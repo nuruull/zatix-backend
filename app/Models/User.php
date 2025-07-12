@@ -90,7 +90,7 @@ class User extends Authenticatable
 
     public function teams()
     {
-        return $this->belongsToMany(EventOrganizer::class, 'event_organizer_user', 'eo_id', 'user_id');
+        return $this->belongsToMany(EventOrganizer::class, 'event_organizer_users', 'eo_id', 'user_id');
     }
 
     public function orders()
