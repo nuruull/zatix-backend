@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\API\Tickets\TicketValidationController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
@@ -222,6 +223,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->name('orders.')
         ->group(function () {
             Route::post('/', [OrderController::class, 'store'])->name('store');
+        });
+
+    Route::prefix('e-tickets')
+        ->name('e-tickets.')
+        ->middleware(['role:crew'])
+        ->group(function () {
+            Route::get('/', [TicketValidationController::class, 'index'])->name('index');
+            Route::post('/validate', [TicketValidationController::class, 'validateTicket'])->name('validate-ticket');
         });
 });
 

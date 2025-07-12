@@ -33,6 +33,7 @@ class ETicket extends Model
         'ticket_id',
         'attendee_name',
         'checked_in_at',
+        'checked_in_by',
     ];
 
     /**
@@ -66,5 +67,10 @@ class ETicket extends Model
     public function ticket(): BelongsTo
     {
         return $this->belongsTo(Ticket::class);
+    }
+
+    public function checkedInBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'checked_in_by');
     }
 }

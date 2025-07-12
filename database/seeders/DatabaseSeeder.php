@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             StaffSeeder::class,
             PaymentMethodSeeder::class,
             VoucherSeeder::class,
+            ETicketSeeder::class,
         ]);
     }
 }
