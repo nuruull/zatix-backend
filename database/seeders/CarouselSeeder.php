@@ -63,7 +63,7 @@ class CarouselSeeder extends Seeder
                 // 3. Ambil konten gambar dari URL (menggunakan picsum.photos untuk gambar acak)
                 $imageUrl = 'https://picsum.photos/2048/1152?random=' . ($index + 1);
                 $imageContent = file_get_contents($imageUrl);
-
+                
                 // 4. Simpan gambar ke storage publik Anda
                 Storage::disk('public')->put($path, $imageContent);
 
