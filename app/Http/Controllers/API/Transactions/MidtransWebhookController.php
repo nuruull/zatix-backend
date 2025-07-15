@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API\Transactions;
 
 use App\Models\Order;
+use App\Models\ETicket;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use App\Enum\Status\OrderStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Enum\Status\MidtransStatusEnum;
-use App\Models\ETicket;
+use App\Notifications\ETicketsGenerated;
 
 class MidtransWebhookController extends Controller
 {
@@ -62,7 +63,10 @@ class MidtransWebhookController extends Controller
     protected function updateOrderStatus(string $orderId, OrderStatusEnum $orderStatus, string $midtransStatus): void
     {
         DB::transaction(function () use ($orderId, $orderStatus, $midtransStatus) {
-            $order = Order::where('id', $orderId)->lockForUpdate()->first();
+            $order = Order::with(['user', 'orderItems.ticket', 'event'])
+                ->where('id', $orderId)
+                ->lockForUpdate()
+                ->first();
 
             if (!$order) {
                 Log::warning("Midtrans Webhook: Order with ID [{$orderId}] NOT FOUND in database.");
@@ -83,6 +87,9 @@ class MidtransWebhookController extends Controller
                 Log::info("Midtrans Webhook: Order [{$orderId}] - Generating e-tickets...");
                 $this->generateETicketsForOrder($order);
                 Log::info("Midtrans Webhook: Order [{$orderId}] - E-tickets generated.");
+
+                $order->user->notify(new ETicketsGenerated($order));
+                Log::info("Midtrans Webhook: Order [{$orderId}] - Notification job dispatched for user [{$order->user->email}].");
 
             } elseif (in_array($orderStatus, [OrderStatusEnum::CANCELLED, OrderStatusEnum::EXPIRED])) {
                 $order->transactions()->update(['status' => $midtransStatus]);

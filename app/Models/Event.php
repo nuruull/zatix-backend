@@ -42,7 +42,7 @@ class Event extends Model
     {
         return LogOptions::defaults()
             ->logFillable()
-            ->setDescriptionForEvent(function(string $eventName) {
+            ->setDescriptionForEvent(function (string $eventName) {
                 $eoName = $this->eventOrganizer->name ?? 'Unknown EO';
                 return "Event '{$this->name}' by '{$eoName}' has been {$eventName}";
             })
@@ -70,11 +70,18 @@ class Event extends Model
         return $this->belongsTo(TermAndCon::class, 'tnc_id');
     }
 
-    public function tncStatuses(){
+    public function tncStatuses()
+    {
         return $this->hasMany(TncStatus::class);
     }
 
-    public function orders(){
+    public function orders()
+    {
         return $this->hasMany(Order::class);
+    }
+
+    public function rundowns()
+    {   
+        return $this->hasMany(Rundown::class)->orderBy('start_datetime', 'asc')->orderBy('order', 'asc');
     }
 }

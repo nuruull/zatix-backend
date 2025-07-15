@@ -30,8 +30,8 @@ class OrderFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
-            'event_id' => Event::factory(),
+            'user_id' => null,
+            'event_id' => null,
             'gross_amount' => 0, // Akan dihitung ulang di afterCreating
             'discount_amount' => 0,
             'tax_amount' => 0,
@@ -48,13 +48,19 @@ class OrderFactory extends Factory
     public function configure()
     {
         return $this->afterCreating(function (Order $order) {
-            // Buat 1 atau 2 item tiket untuk order ini
+            // Ambil tiket yang sudah ada untuk event ini
+            $ticket = Ticket::where('event_id', $order->event_id)->inRandomOrder()->first();
+
+            // Jika tidak ada tiket sama sekali untuk event ini, baru buat satu
+            if (!$ticket) {
+                $ticket = Ticket::factory()->create(['event_id' => $order->event_id]);
+            }
+
             $orderItems = OrderItem::factory()
                 ->count($this->faker->numberBetween(1, 2))
                 ->create([
                     'order_id' => $order->id,
-                    // Pastikan item tiket berasal dari event yang sama dengan ordernya
-                    'ticket_id' => Ticket::factory()->create(['event_id' => $order->event_id]),
+                    'ticket_id' => $ticket->id, // Gunakan ID tiket yang sudah ada/baru dibuat
                 ]);
 
             // Hitung ulang total berdasarkan item yang baru dibuat

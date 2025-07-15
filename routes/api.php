@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\API\Tickets\TicketValidationController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
@@ -8,10 +7,13 @@ use App\Http\Controllers\API\Auth\AuthController;
 use App\Http\Controllers\API\TermAndConController;
 use App\Http\Controllers\API\Events\EventController;
 use App\Http\Controllers\API\Events\StaffController;
+use App\Http\Controllers\API\Events\RundownController;
 use App\Http\Controllers\API\Events\EventTncController;
 use App\Http\Controllers\API\Log\ActivityLogController;
 use App\Http\Controllers\API\Auth\NewPasswordController;
 use App\Http\Controllers\API\General\CarouselController;
+use App\Http\Controllers\API\Tickets\MyTicketController;
+use App\Http\Controllers\API\Tickets\TicketQRController;
 use App\Http\Controllers\API\Documents\DocumentController;
 use App\Http\Controllers\API\Events\EventPublicController;
 use App\Http\Controllers\API\Transactions\OrderController;
@@ -19,6 +21,7 @@ use App\Http\Controllers\API\Facilities\FacilityController;
 use App\Http\Controllers\API\General\NotificationController;
 use App\Http\Controllers\API\Events\EventOrganizerController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
+use App\Http\Controllers\API\Tickets\TicketValidationController;
 use App\Http\Controllers\API\Transactions\MidtransWebhookController;
 
 
@@ -227,10 +230,31 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('e-tickets')
         ->name('e-tickets.')
-        ->middleware(['role:crew'])
         ->group(function () {
-            Route::get('/', [TicketValidationController::class, 'index'])->name('index');
-            Route::post('/validate', [TicketValidationController::class, 'validateTicket'])->name('validate-ticket');
+            Route::middleware(['role:crew'])->group(function () {
+                Route::get('/', [TicketValidationController::class, 'index'])->name('index');
+                Route::post('/validate', [TicketValidationController::class, 'validateTicket'])->name('validate-ticket');
+            });
+            Route::get('/{ticket_code}/qr', [TicketQRController::class, 'show'])->name('show-qr');
+        });
+
+    Route::prefix('my-tickets')
+        ->name('my-tickets.')
+        ->group(function () {
+            Route::get('/', [MyTicketController::class, 'index'])->name('index');
+            Route::get('/{eTicket:ticket_code}', [MyTicketController::class, 'show'])->name('show');
+        });
+
+
+    Route::prefix('rundowns')
+        ->name('rundowns.')
+        ->middleware(['role:eo-owner|crew|customer'])
+        ->group(function () {
+            Route::get('/', [RundownController::class, 'index'])->name('index');
+            Route::post('/create/{event}', [RundownController::class, 'store'])->name('store');
+            Route::get('/{rundown}', [RundownController::class, 'show'])->name('show');
+            Route::put('/{rundown}', [RundownController::class, 'update'])->name('update');
+            Route::delete('/{rundown}', [RundownController::class, 'destroy'])->name('destroy');
         });
 });
 
