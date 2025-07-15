@@ -26,7 +26,7 @@ class EventOrganizerFactory extends Factory
             'phone_no_eo' => $this->faker->phoneNumber(),
             'address_eo' => $this->faker->address(),
             'logo' => null,
-            'eo_owner_id' => User::factory(),
+            'eo_owner_id' => null,
             'organizer_type' => $this->faker->randomElement(OrganizerTypeEnum::cases()),
         ];
     }
