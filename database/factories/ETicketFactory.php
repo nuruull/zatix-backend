@@ -28,12 +28,14 @@ class ETicketFactory extends Factory
      */
     public function definition(): array
     {
+        $user = User::factory()->create();
+
         return [
             'ticket_code' => Str::upper('ZTX-' . Str::random(12)),
-            'order_id' => null,
-            'user_id' => null,
-            'ticket_id' => null,
-            'attendee_name' => $this->faker->name(),
+            'order_id' => Order::factory(),
+            'user_id' => $user->id,
+            'ticket_id' => Ticket::factory(),
+            'attendee_name' => $user->name,
             'checked_in_at' => null,
             'checked_in_by' => null,
         ];

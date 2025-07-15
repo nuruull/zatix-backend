@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class ETicket extends Model
 {
@@ -72,5 +73,13 @@ class ETicket extends Model
     public function checkedInBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'checked_in_by');
+    }
+
+    public function scopeCheckedInForEvent(Builder $query, int $eventId): Builder
+    {
+        return $query->whereNotNull('checked_in_at') // <-- INI PENYEBABNYA
+            ->whereHas('ticket', function ($q) use ($eventId) {
+                $q->where('event_id', $eventId);
+            });
     }
 }

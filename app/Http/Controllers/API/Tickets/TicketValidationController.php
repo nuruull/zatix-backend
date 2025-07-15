@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Enum\Status\OrderStatusEnum;
 use App\Http\Controllers\BaseController;
+use App\Http\Resources\TicketHistoryResource;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class TicketValidationController extends BaseController
@@ -21,23 +22,15 @@ class TicketValidationController extends BaseController
 
         try {
             $checkedInTickets = ETicket::query()
-                ->whereNotNull('check_in_at')
-                ->whereHas('ticket', function ($query) use ($validated) {
-                    // PERBAIKAN: Menggunakan where() untuk filter, bukan when().
-                    $query->where('event_id', $validated['event_id']);
-                })
-                ->with([
-                    'user:id,name',
-                    'ticket:id,name',
-                    'checkedInBy:id,name'
-                ])
-                ->latest('check_in_at')
+                ->checkedInForEvent($validated['event_id'])
+                ->with(['ticket:id,name', 'checkedInBy:id,name'])
+                ->latest('checked_in_at')
                 ->paginate(25);
 
-            return $this->sendResponse(
-                $checkedInTickets,
-                'Check-in history was retrieved successfully.'
-            );
+            return TicketHistoryResource::collection($checkedInTickets)->additional([
+                'success' => true,
+                'message' => 'Check-in history retrieved successfully.',
+            ]);
         } catch (\Exception $e) {
             Log::error("Failed to retrieve checked-in ticket history.", [
                 'event_id' => $validated['event_id'],

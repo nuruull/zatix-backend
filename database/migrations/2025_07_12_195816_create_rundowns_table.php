@@ -18,7 +18,6 @@ return new class extends Migration {
             $table->dateTime('start_datetime');
             $table->dateTime('end_datetime');
             $table->integer('order')->default(0); //untuk sorting
-            $table->boolean('is_public')->default(false);
             $table->timestamps();
         });
     }

@@ -32,7 +32,7 @@ class OrderItemFactory extends Factory
 
         return [
             // 'order_id' => Order::factory(), // <-- DIHAPUS untuk memutus loop tak terbatas
-            'ticket_id' => null,
+            'ticket_id' => Ticket::factory(),
             'quantity' => $quantity,
             'price' => $price,
             'discount' => $discount,
