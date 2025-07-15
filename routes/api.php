@@ -172,10 +172,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->name('my-events.')
         ->middleware(['role:eo-owner'])
         ->group(function () {
-            // Route::middleware(['permission:create-event'])->post('/create', [EventController::class, 'store'])->name('create');
-            // Route::middleware(['permission:update-event'])->put('/update/{id}', [EventController::class, 'update'])->name('update');
-            // Route::middleware(['permission:delete-event'])->delete('/{id}', [EventController::class, 'destroy'])->name('destroy');
-            // Route::middleware(['permission:publish-event'])->post('/{id}/publish', [EventController::class, 'publish']);
             Route::get('/', [EventController::class, 'index'])->name('index');
             Route::get('/{event}', [EventController::class, 'show'])->name('show');
             Route::post('/create', [EventController::class, 'store'])->name('store');
@@ -183,9 +179,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
             Route::post('/{event}/publish', [EventController::class, 'publish'])->name('publish');
             Route::post('/{event}/public', [EventController::class, 'publicStatus'])->name('public');
-            ;
         });
 
+    Route::prefix('events')->name('events')->group(function () {
+        Route::get('/{event}/rundowns', [RundownController::class, 'index'])->name('events.rundowns.index');
+        Route::post('/{event}/rundowns', [RundownController::class, 'store'])->name('events.rundowns.store');
+    });
+    Route::prefix('rundowns')->name('rundowns.')->group(function () {
+        Route::get('/rundowns/{rundown}', [RundownController::class, 'show'])->name('rundowns.show');
+        Route::put('/rundowns/{rundown}', [RundownController::class, 'update'])->name('rundowns.update');
+        Route::delete('/rundowns/{rundown}', [RundownController::class, 'destroy'])->name('rundowns.destroy');
+    });
+    
     Route::prefix('facilities')
         ->name('facility.')
         ->middleware(['role:super-admin|eo-owner'])
@@ -231,11 +236,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('e-tickets')
         ->name('e-tickets.')
         ->group(function () {
-            Route::middleware(['role:crew'])->group(function () {
+            Route::get('/{ticket_code}/qr', [TicketQRController::class, 'show'])->name('show-qr');
+            Route::middleware(['role:crew|eo-owner'])->group(function () {
                 Route::get('/', [TicketValidationController::class, 'index'])->name('index');
+            });
+            Route::middleware(['role:crew'])->group(function () {
                 Route::post('/validate', [TicketValidationController::class, 'validateTicket'])->name('validate-ticket');
             });
-            Route::get('/{ticket_code}/qr', [TicketQRController::class, 'show'])->name('show-qr');
         });
 
     Route::prefix('my-tickets')
@@ -243,18 +250,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->group(function () {
             Route::get('/', [MyTicketController::class, 'index'])->name('index');
             Route::get('/{eTicket:ticket_code}', [MyTicketController::class, 'show'])->name('show');
-        });
-
-
-    Route::prefix('rundowns')
-        ->name('rundowns.')
-        ->middleware(['role:eo-owner|crew|customer'])
-        ->group(function () {
-            Route::get('/', [RundownController::class, 'index'])->name('index');
-            Route::post('/create/{event}', [RundownController::class, 'store'])->name('store');
-            Route::get('/{rundown}', [RundownController::class, 'show'])->name('show');
-            Route::put('/{rundown}', [RundownController::class, 'update'])->name('update');
-            Route::delete('/{rundown}', [RundownController::class, 'destroy'])->name('destroy');
         });
 });
 

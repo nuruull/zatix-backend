@@ -30,8 +30,8 @@ class OrderFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => null,
-            'event_id' => null,
+            'user_id' => User::factory(),
+            'event_id' => Event::factory(),
             'gross_amount' => 0, // Akan dihitung ulang di afterCreating
             'discount_amount' => 0,
             'tax_amount' => 0,

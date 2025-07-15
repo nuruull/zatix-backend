@@ -16,13 +16,11 @@ class Rundown extends Model
         'start_datetime',
         'end_datetime',
         'order',
-        'is_public',
     ];
 
     protected $casts = [
         'start_datetime' => 'datetime',
         'end_datetime' => 'datetime',
-        'is_public' => 'boolean',
     ];
 
     public function event()

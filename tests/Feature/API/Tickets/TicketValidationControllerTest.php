@@ -6,6 +6,7 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\Order;
+use App\Models\Ticket;
 use App\Models\ETicket;
 use Laravel\Sanctum\Sanctum;
 use App\Models\EventOrganizer;
@@ -23,6 +24,8 @@ class TicketValidationControllerTest extends TestCase
     private User $otherCrew;
     private Event $event;
     private EventOrganizer $eo;
+    private User $customer;
+    private Ticket $ticket;
 
     /**
      * Menyiapkan lingkungan untuk setiap test.
@@ -31,9 +34,10 @@ class TicketValidationControllerTest extends TestCase
     {
         parent::setUp();
 
-        // Buat role yang diperlukan dengan guard 'api'
+        // Buat role yang diperlukan
         Role::create(['name' => 'crew', 'guard_name' => 'api']);
         Role::create(['name' => 'eo-owner', 'guard_name' => 'api']);
+        Role::create(['name' => 'customer', 'guard_name' => 'api']); // <-- Tambahkan role customer
 
         // Buat EO utama dan crew-nya
         $this->eo = EventOrganizer::factory()->create();
@@ -47,6 +51,13 @@ class TicketValidationControllerTest extends TestCase
         $otherEo = EventOrganizer::factory()->create();
         $this->otherCrew = User::factory()->create()->assignRole('crew');
         $otherEo->members()->attach($this->otherCrew->id);
+
+        // --- TAMBAHAN UNTUK MEMPERBAIKI ERROR ---
+        // 1. Buat satu user customer yang akan kita gunakan di semua test
+        $this->customer = User::factory()->create()->assignRole('customer');
+
+        // 2. Buat satu jenis tiket default untuk event utama kita
+        $this->ticket = Ticket::factory()->create(['event_id' => $this->event->id]);
     }
 
     /**
@@ -201,55 +212,50 @@ class TicketValidationControllerTest extends TestCase
             ->assertJsonValidationErrors(['ticket_code']);
     }
 
-    // /**
-    //  * Endpoint index berhasil mengambil riwayat check-in.
-    //  */
-    // #[Test]
-    // public function index_retrieves_checked_in_history_for_an_event()
-    // {
-    //     // Pastikan database transaction selesai
-    //     DB::beginTransaction();
+    #[Test]
+    public function index_returns_paginated_and_formatted_history_via_resource(): void
+    {
+        // Arrange: Siapkan data yang kompleks untuk memastikan semua filter bekerja
+        // 1. Buat 3 tiket yang sudah check-in untuk event ini (harus muncul)
+        // Kita variasikan waktunya agar bisa menguji pengurutan
+        $order1 = Order::factory()->create(['event_id' => $this->event->id, 'user_id' => $this->customer->id]);
+        $ticket1 = ETicket::factory()->create(['order_id' => $order1->id, 'user_id' => $this->customer->id, 'ticket_id' => $this->ticket->id, 'checked_in_at' => now()->subMinutes(20), 'checked_in_by' => $this->crew->id]);
+        $ticket2 = ETicket::factory()->create(['order_id' => $order1->id, 'user_id' => $this->customer->id, 'ticket_id' => $this->ticket->id, 'checked_in_at' => now()->subMinutes(10), 'checked_in_by' => $this->crew->id]);
+        $latestTicket = ETicket::factory()->create(['order_id' => $order1->id, 'user_id' => $this->customer->id, 'ticket_id' => $this->ticket->id, 'checked_in_at' => now()->subMinute(), 'checked_in_by' => $this->crew->id]);
 
-    //     try {
-    //         // Arrange: Buat 3 tiket yang sudah check-in untuk event ini
-    //         $order = Order::factory()->create(['event_id' => $this->event->id, 'status' => OrderStatusEnum::PAID->value]);
-    //         $order->refresh();
+        // 2. Tiket yang BELUM check-in untuk event ini (TIDAK boleh muncul)
+        $order2 = Order::factory()->create(['event_id' => $this->event->id, 'user_id' => $this->customer->id]);
+        ETicket::factory()->create(['order_id' => $order2->id, 'user_id' => $this->customer->id, 'ticket_id' => $this->ticket->id, 'checked_in_at' => null]);
 
-    //         $eTickets = ETicket::factory()->count(3)->create([
-    //             'order_id' => $order->id,
-    //             'ticket_id' => $order->orderItems->first()->ticket_id,
-    //             'checked_in_at' => now(),
-    //             'checked_in_by' => $this->crew->id,
-    //         ]);
+        // 3. Tiket yang sudah check-in tapi untuk event LAIN (TIDAK boleh muncul)
+        $otherEvent = Event::factory()->create();
+        $otherTicket = Ticket::factory()->create(['event_id' => $otherEvent->id]);
+        $order3 = Order::factory()->create(['event_id' => $otherEvent->id, 'user_id' => $this->customer->id]);
+        ETicket::factory()->create(['order_id' => $order3->id, 'user_id' => $this->customer->id, 'ticket_id' => $otherTicket->id, 'checked_in_at' => now()]);
 
-    //         $order2 = Order::factory()->create(['event_id' => $this->event->id, 'status' => OrderStatusEnum::PAID->value]);
-    //         $order2->refresh();
+        // Act
+        Sanctum::actingAs($this->crew);
+        $response = $this->getJson('/api/e-tickets?event_id=' . $this->event->id);
 
-    //         ETicket::factory()->create([
-    //             'order_id' => $order2->id,
-    //             'ticket_id' => $order2->orderItems->first()->ticket_id,
-    //         ]);
-
-    //         DB::commit();
-
-    //         // Pastikan data sudah tersimpan
-    //         $this->assertDatabaseCount('e_tickets', 4);
-    //         $this->assertDatabaseCount('e_tickets', 3, ['checked_in_at' => ['!=', null]]);
-
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-    //         throw $e;
-    //     }
-
-    //     $token = $this->crew->createToken('test-token')->plainTextToken;
-
-    //     // Act
-    //     $response = $this->withHeaders([
-    //         'Authorization' => 'Bearer ' . $token,
-    //     ])->getJson('/api/e-tickets?event_id=' . $this->event->id);
-
-    //     // Assert
-    //     $response->assertStatus(200)
-    //         ->assertJsonCount(3, 'data.data');
-    // }
+        // Assert
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(3, 'data')
+            ->assertJsonPath('data.0.ticket_code', $latestTicket->ticket_code)
+            ->assertJsonStructure([
+                'data' => [
+                    '*' => [
+                        'ticket_code',
+                        'attendee_name',
+                        'ticket_type',
+                        'checked_in_at',
+                        'scanned_by'
+                    ]
+                ],
+                'links',
+                'meta',
+                'success',
+                'message'
+            ]);
+    }
 }
