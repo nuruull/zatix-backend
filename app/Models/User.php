@@ -107,4 +107,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Transaction::class);
     }
+
+    public function recordedTransactions()
+    {
+        return $this->hasMany(FinancialTransaction::class, 'recorded_by_user_id');
+    }
 }

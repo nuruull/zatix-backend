@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 // use Illuminate\Support\Facades\Gate;
+use App\Models\FinancialTransaction;
 use App\Models\Rundown;
+use App\Policies\FinancialTransactionPolicy;
 use App\Policies\RundownPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
@@ -16,6 +18,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected $policies = [
         Rundown::class => RundownPolicy::class,
+        FinancialTransaction::class => FinancialTransactionPolicy::class,
     ];
 
     /**

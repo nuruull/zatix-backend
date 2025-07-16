@@ -2,13 +2,14 @@
 
 namespace App\Traits;
 
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
 trait ManageFileTrait
 {
     function storeFile($file, $folder = 'uploads')
     {
-        $fileName = time() . '.' . $file->extension();
+        $fileName = time() . '_' . Str::random(8) . '.' . $file->extension();
 
         $file->move(storage_path('app/public/' . $folder), $fileName);
 
