@@ -10,8 +10,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Enum\Status\OrderStatusEnum;
 use App\Http\Controllers\Controller;
+use App\Models\FinancialTransaction;
 use App\Enum\Status\MidtransStatusEnum;
 use App\Notifications\ETicketsGenerated;
+use App\Enum\Type\FinancialTransactionTypeEnum;
 
 class MidtransWebhookController extends Controller
 {
@@ -88,6 +90,10 @@ class MidtransWebhookController extends Controller
                 $this->generateETicketsForOrder($order);
                 Log::info("Midtrans Webhook: Order [{$orderId}] - E-tickets generated.");
 
+                // Panggil method untuk mencatat pemasukan
+                $this->recordTicketSalesAsIncome($order);
+                Log::info("Midtrans Webhook: Order [{$orderId}] - Ticket sales recorded as income.");
+
                 $order->user->notify(new ETicketsGenerated($order));
                 Log::info("Midtrans Webhook: Order [{$orderId}] - Notification job dispatched for user [{$order->user->email}].");
 
@@ -117,5 +123,21 @@ class MidtransWebhookController extends Controller
                 ]);
             }
         }
+    }
+
+    /**
+     * Mencatat pendapatan dari penjualan tiket sebagai 'income' di tabel keuangan.
+     */
+    protected function recordTicketSalesAsIncome(Order $order): void
+    {
+        FinancialTransaction::create([
+            'event_id' => $order->event_id,
+            'type' => FinancialTransactionTypeEnum::INCOME, // Jenis transaksi adalah pemasukan
+            'category' => 'Ticket Sales', // Kategori spesifik untuk pelaporan
+            'description' => 'Pendapatan dari Order #' . $order->id,
+            'amount' => $order->net_amount, // Ambil jumlah bersih yang dibayar customer
+            'transaction_date' => now(), // Tanggal saat pembayaran dikonfirmasi
+            'recorded_by_user_id' => $order->event->eventOrganizer->eo_owner_id,
+        ]);
     }
 }

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Illuminate\Foundation\Validation\ValidatesRequests;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 /**
  * @OA\Info(
@@ -26,6 +28,7 @@ use Illuminate\Routing\Controller;
  */
 class BaseController extends Controller
 {
+    use AuthorizesRequests, ValidatesRequests;
     protected function sendResponse($result, $message, $code = 200)
     {
         $response = [

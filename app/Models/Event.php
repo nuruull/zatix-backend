@@ -81,7 +81,12 @@ class Event extends Model
     }
 
     public function rundowns()
-    {   
+    {
         return $this->hasMany(Rundown::class)->orderBy('start_datetime', 'asc')->orderBy('order', 'asc');
+    }
+
+    public function financialTransactions()
+    {
+        return $this->hasMany(FinancialTransaction::class);
     }
 }

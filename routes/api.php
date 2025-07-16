@@ -23,6 +23,7 @@ use App\Http\Controllers\API\Events\EventOrganizerController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
 use App\Http\Controllers\API\Tickets\TicketValidationController;
 use App\Http\Controllers\API\Transactions\MidtransWebhookController;
+use App\Http\Controllers\API\Transactions\FinancialTransactionController;
 
 
 /*
@@ -181,16 +182,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::post('/{event}/public', [EventController::class, 'publicStatus'])->name('public');
         });
 
-    Route::prefix('events')->name('events')->group(function () {
+    Route::prefix('events')->name('events.')->group(function () {
         Route::get('/{event}/rundowns', [RundownController::class, 'index'])->name('events.rundowns.index');
         Route::post('/{event}/rundowns', [RundownController::class, 'store'])->name('events.rundowns.store');
     });
     Route::prefix('rundowns')->name('rundowns.')->group(function () {
-        Route::get('/rundowns/{rundown}', [RundownController::class, 'show'])->name('rundowns.show');
-        Route::put('/rundowns/{rundown}', [RundownController::class, 'update'])->name('rundowns.update');
-        Route::delete('/rundowns/{rundown}', [RundownController::class, 'destroy'])->name('rundowns.destroy');
+        Route::get('/{rundown}', [RundownController::class, 'show'])->name('rundowns.show');
+        Route::put('/{rundown}', [RundownController::class, 'update'])->name('rundowns.update');
+        Route::delete('/{rundown}', [RundownController::class, 'destroy'])->name('rundowns.destroy');
     });
-    
+
     Route::prefix('facilities')
         ->name('facility.')
         ->middleware(['role:super-admin|eo-owner'])
@@ -251,6 +252,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::get('/', [MyTicketController::class, 'index'])->name('index');
             Route::get('/{eTicket:ticket_code}', [MyTicketController::class, 'show'])->name('show');
         });
+
+    Route::prefix('events')->name('events.')->group(function () {
+        Route::get('/{event}/financial-transactions', [FinancialTransactionController::class, 'index'])->name('financial-transactions.index');
+        Route::post('/{event}/financial-transactions', [FinancialTransactionController::class, 'store'])->name('financial-transactions.store');
+    });
+    Route::prefix('financial-transactions')->name('financial-transactions.')->group(function () {
+        Route::get('/{financial_transaction}', [FinancialTransactionController::class, 'show'])->name('show');
+        Route::put('/{financial_transaction}', [FinancialTransactionController::class, 'update'])->name('update');
+        Route::delete('/{financial_transaction}', [FinancialTransactionController::class, 'destroy'])->name('destroy');
+    });
 });
 
 Route::get('/reset-database', function () {
