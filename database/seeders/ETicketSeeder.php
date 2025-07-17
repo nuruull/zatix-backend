@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enum\Status\EventStatusEnum;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\Order;
@@ -51,7 +52,7 @@ class ETicketSeeder extends Seeder
 
             // SKENARIO UNTUK EVENT "EO KEREN"
             // ===============================
-            $eventKeren = Event::factory()->create(['is_published' => true, 'eo_id' => $eoKeren->id, 'name' => 'Konser Megah EO Keren']);
+            $eventKeren = Event::factory()->create(['is_published' => true, 'eo_id' => $eoKeren->id, 'name' => 'Konser Megah EO Keren', 'status' => EventStatusEnum::ACTIVE->value]);
 
             // Skenario 1: Tiket valid, belum dipakai
             $validOrder = Order::factory()->create([

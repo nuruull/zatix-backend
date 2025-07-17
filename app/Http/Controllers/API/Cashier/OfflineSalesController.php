@@ -79,7 +79,7 @@ class OfflineSalesController extends BaseController
 
             $order->load('eTickets');
 
-            return $this->sendResponse($order->eTickets, 'Offline sale successful. E-tickets generated.');
+            return $this->sendResponse($order->eTickets, 'Offline sale successful. E-tickets generated.', 201);
 
         } catch (AuthorizationException $e) {
             // Tangkap error otorisasi secara spesifik
