@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\Auth\AuthController;
+use App\Http\Controllers\API\Admin\UserController;
 use App\Http\Controllers\API\TermAndConController;
 use App\Http\Controllers\API\Events\EventController;
 use App\Http\Controllers\API\Events\StaffController;
@@ -155,8 +156,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->name('tnc-event.')
         ->middleware(['role:eo-owner'])
         ->group(function () {
-            // Route::middleware(['permission:view-tnc-event'])->get('/', [EventTncController::class, 'show'])->name('show');
-            // Route::middleware(['permission:accept-tnc-event'])->post('/accept', [EventTncController::class, 'agree'])->name('accept');
             Route::get('/', [EventTncController::class, 'show'])->name('show');
             Route::post('/accept', [EventTncController::class, 'agree'])->name('accept');
         });
@@ -172,6 +171,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
             Route::post('/{event}/publish', [EventController::class, 'publish'])->name('publish');
             Route::post('/{event}/public', [EventController::class, 'publicStatus'])->name('public');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['role:super-admin']) // <-- KUNCI KEAMANAN UTAMA
+        ->group(function () {
+            Route::get('/events', [\App\Http\Controllers\API\Admin\EventController::class, 'index'])->name('events.index');
+            Route::get('/users', [UserController::class, 'index'])->name('users.index');
+            Route::get('/roles', [UserController::class, 'getRoles'])->name('roles.index');
+            Route::put('/users/{user}/roles', [UserController::class, 'updateRoles'])->name('users.update-roles');
+
         });
 
     Route::prefix('events')->name('events.')->group(function () {
