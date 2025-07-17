@@ -52,4 +52,9 @@ class Order extends Model
         return $this->belongsToMany(Voucher::class, 'order_voucher')
             ->withPivot('discount_amount');
     }
+
+    public function financialTransactions()
+    {
+        return $this->hasMany(FinancialTransaction::class);
+    }
 }

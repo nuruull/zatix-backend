@@ -14,6 +14,7 @@ use App\Models\FinancialTransaction;
 use App\Enum\Status\MidtransStatusEnum;
 use App\Notifications\ETicketsGenerated;
 use App\Enum\Type\FinancialTransactionTypeEnum;
+use App\Actions\ProcessPaidOrder;
 
 class MidtransWebhookController extends Controller
 {
@@ -65,37 +66,31 @@ class MidtransWebhookController extends Controller
     protected function updateOrderStatus(string $orderId, OrderStatusEnum $orderStatus, string $midtransStatus): void
     {
         DB::transaction(function () use ($orderId, $orderStatus, $midtransStatus) {
-            $order = Order::with(['user', 'orderItems.ticket', 'event'])
+            $order = Order::with('user', 'orderItems.ticket')
                 ->where('id', $orderId)
                 ->lockForUpdate()
                 ->first();
 
-            if (!$order) {
-                Log::warning("Midtrans Webhook: Order with ID [{$orderId}] NOT FOUND in database.");
+            if (!$order || $order->status === OrderStatusEnum::PAID) {
+                // Log jika tidak ditemukan atau sudah lunas, lalu hentikan proses.
+                $logMessage = !$order ? "Order with ID [{$orderId}] NOT FOUND." : "Order [{$orderId}] is already PAID. Ignoring.";
+                Log::info("Midtrans Webhook: " . $logMessage);
                 return;
             }
 
-            if ($order->status === OrderStatusEnum::PAID) {
-                Log::info("Midtrans Webhook: Order [{$orderId}] is already PAID. Ignoring notification.");
-                return;
-            }
-
-            Log::info("Midtrans Webhook: Order [{$orderId}] - Updating order status from [{$order->status->value}] to [{$orderStatus->value}].");
+            Log::info("Midtrans Webhook: Order [{$orderId}] - Updating status to [{$orderStatus->value}].");
             $order->update(['status' => $orderStatus->value]);
 
             if ($orderStatus === OrderStatusEnum::PAID) {
                 $order->transactions()->where('status', '!=', 'settlement')->update(['status' => 'settlement']);
 
-                Log::info("Midtrans Webhook: Order [{$orderId}] - Generating e-tickets...");
-                $this->generateETicketsForOrder($order);
-                Log::info("Midtrans Webhook: Order [{$orderId}] - E-tickets generated.");
+                // 2. Ganti logika duplikat dengan memanggil Action Class
+                (new ProcessPaidOrder)->execute($order);
+                Log::info("Midtrans Webhook: Order [{$orderId}] - Paid order processing delegated to action.");
 
-                // Panggil method untuk mencatat pemasukan
-                $this->recordTicketSalesAsIncome($order);
-                Log::info("Midtrans Webhook: Order [{$orderId}] - Ticket sales recorded as income.");
-
+                // Notifikasi tetap di sini karena spesifik untuk alur online
                 $order->user->notify(new ETicketsGenerated($order));
-                Log::info("Midtrans Webhook: Order [{$orderId}] - Notification job dispatched for user [{$order->user->email}].");
+                Log::info("Midtrans Webhook: Order [{$orderId}] - Notification job dispatched.");
 
             } elseif (in_array($orderStatus, [OrderStatusEnum::CANCELLED, OrderStatusEnum::EXPIRED])) {
                 $order->transactions()->update(['status' => $midtransStatus]);

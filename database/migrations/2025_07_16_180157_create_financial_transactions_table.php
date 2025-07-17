@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('financial_transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('event_id')->constrained('events')->OnDelete('cascade');
+            $table->foreignUuid('order_id')->nullable()->constrained()->onDelete('cascade');
             $table->string('type'); //income, expanse
             $table->string('description');
             $table->string('category')->nullable();

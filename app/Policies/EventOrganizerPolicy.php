@@ -13,7 +13,7 @@ class EventOrganizerPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('super-admin');
+        return $user->hasRole('super-admin'. 'api');
     }
 
     /**
@@ -21,7 +21,7 @@ class EventOrganizerPolicy
      */
     public function view(User $user, EventOrganizer $eventOrganizer): bool
     {
-        return $user->hasRole('super-admin');
+        return $user->hasRole('super-admin', 'api');
     }
 
     /**
@@ -29,7 +29,7 @@ class EventOrganizerPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('eo-owner') && !$user->eventOrganizer()->exists();
+        return $user->hasRole('eo-owner', 'api') && !$user->eventOrganizer()->exists();
     }
 
     /**
