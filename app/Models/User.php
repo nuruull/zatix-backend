@@ -31,6 +31,13 @@ class User extends Authenticatable
     ];
 
     /**
+     * The guard that this model uses.
+     *
+     * @var string
+     */
+    protected $guard_name = 'api';
+
+    /**
      * The attributes that should be hidden for serialization.
      *
      * @var array<int, string>
