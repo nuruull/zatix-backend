@@ -40,14 +40,10 @@ class RundownController extends BaseController
         ]);
 
         try {
-            $rundown = $event->rundowns()->create($validated);
-            $resource = new RundownResource($rundown);
-
             $rundown = DB::transaction(function () use ($event, $validated) {
-                $newRundown = $event->rundowns()->create($validated);
-
-                return $newRundown;
+                return $event->rundowns()->create($validated);
             });
+            $resource = new RundownResource($rundown);
 
             return $this->sendResponse($resource, 'Rundown created successfully.', 201);
         } catch (\Exception $e) {
