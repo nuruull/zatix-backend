@@ -15,7 +15,7 @@ class EventOrganizer extends Model
 {
     use HasFactory, HasRoles, LogsActivity;
 
-    protected $fillable = ['eo_owner_id', 'organizer_type', 'name', 'logo', 'description', 'email_eo', 'phone_no_eo', 'address_eo', 'is_doc_verified'];
+    protected $fillable = ['eo_owner_id', 'organizer_type', 'name', 'logo', 'description', 'email_eo', 'phone_no_eo', 'address_eo'];
 
     protected $casts = [
         'organizer_type' => OrganizerTypeEnum::class,

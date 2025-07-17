@@ -24,7 +24,7 @@ class EventOrganizerController extends BaseController
     public function index()
     {
         $this->authorize('viewAny', EventOrganizer::class);
-        $organizers = EventOrganizer::with('eo_owner:id,name')->latest()->get();
+        $organizers = EventOrganizer::with(['eo_owner:id,name', 'documents'])->latest()->get();
         return $this->sendResponse($organizers, 'List of Event Organizers');
     }
 
@@ -38,7 +38,7 @@ class EventOrganizerController extends BaseController
     public function store(Request $request)
     {
         $this->authorize('create', EventOrganizer::class);
-        
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'organizer_type' => ['required', Rule::enum(OrganizerTypeEnum::class)],
@@ -48,7 +48,7 @@ class EventOrganizerController extends BaseController
             'phone_no_eo' => 'required|string|max:20',
             'address_eo' => 'required|string|max:1000',
         ]);
-    
+
         $data['eo_owner_id'] = Auth::id();
 
         if ($request->hasFile('logo')) {
