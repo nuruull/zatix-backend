@@ -19,6 +19,7 @@ use App\Http\Controllers\API\Documents\DocumentController;
 use App\Http\Controllers\API\Events\EventPublicController;
 use App\Http\Controllers\API\Transactions\OrderController;
 use App\Http\Controllers\API\Facilities\FacilityController;
+use App\Http\Controllers\API\Cashier\OfflineSalesController;
 use App\Http\Controllers\API\General\NotificationController;
 use App\Http\Controllers\API\Events\EventOrganizerController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
@@ -130,7 +131,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::middleware(['role:super-admin'])->group(function () {
                 Route::get('/', [DocumentController::class, 'index'])->name('index');
                 Route::get('/{document}', [DocumentController::class, 'show'])->name('show');
-                Route::patch('/{document}/status', [DocumentController::class, 'updateStatus'])->name('updateStatus');
+                Route::put('/{document}/status', [DocumentController::class, 'updateStatus'])->name('updateStatus');
             });
             Route::middleware(['role:eo-owner'])->group(function () {
                 Route::post('/create', [DocumentController::class, 'store'])->name('store');
@@ -263,6 +264,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{financial_transaction}', [FinancialTransactionController::class, 'show'])->name('show');
         Route::put('/{financial_transaction}', [FinancialTransactionController::class, 'update'])->name('update');
         Route::delete('/{financial_transaction}', [FinancialTransactionController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('cashier')
+    ->name('cashier.')
+    ->middleware(['role:cashier'])
+    ->group(function () {
+        Route::post('/sales', [OfflineSalesController::class, 'store'])->name('sales.store');
+
     });
 });
 
