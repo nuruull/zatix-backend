@@ -20,97 +20,49 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 class EventOrganizerController extends BaseController
 {
     use ManageFileTrait;
-    public function index(Request $request)
-    {
-        $organizers = EventOrganizer::with('eo_owner')->latest()->get();
 
-        return $this->sendResponse(
-            $organizers,
-            'List of Event Organizers'
-        );
+    public function index()
+    {
+        $this->authorize('viewAny', EventOrganizer::class);
+        $organizers = EventOrganizer::with('eo_owner:id,name')->latest()->get();
+        return $this->sendResponse($organizers, 'List of Event Organizers');
     }
 
-    public function show($id)
+    public function show(EventOrganizer $organizer)
     {
-        try {
-            $organizer = EventOrganizer::with('eo_owner')->findOrFail($id);
-
-            return $this->sendResponse(
-                $organizer,
-                'Event Organizer found'
-            );
-        } catch (ModelNotFoundException $e) {
-            return $this->sendError(
-                'Event Organizer not found'
-            );
-        }
+        $this->authorize('view', $organizer);
+        $organizer->load('eo_owner:id,name', 'documents');
+        return $this->sendResponse($organizer, 'Event Organizer found');
     }
 
     public function store(Request $request)
     {
-        try {
-            $validator = Validator::make($request->all(), [
-                'name' => 'required|string|max:255',
-                'organizer_type' => ['required', 'string', Rule::in(['individual', 'company'])],
-                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-                'description' => 'nullable|string',
-                'email_eo' => 'nullable|email',
-                'phone_no_eo' => 'required|string|max:20',
-                'address_eo' => 'required|string|max:1000',
-            ]);
+        $this->authorize('create', EventOrganizer::class);
+        
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'organizer_type' => ['required', Rule::enum(OrganizerTypeEnum::class)],
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'description' => 'nullable|string',
+            'email_eo' => 'nullable|email|unique:event_organizers,email_eo',
+            'phone_no_eo' => 'required|string|max:20',
+            'address_eo' => 'required|string|max:1000',
+        ]);
+    
+        $data['eo_owner_id'] = Auth::id();
 
-            if ($validator->fails()) {
-                \Log::error('Validation failed', ['errors' => $validator->errors()]);
-                throw new HttpResponseException(
-                    $this->sendError(
-                        'Validation failed',
-                        $validator->errors(),
-                        422
-                    )
-                );
-            }
-
-            $user = Auth::user();
-            if ($user->eventOrganizer()->exists()) {
-                return $this->sendError('You already have an Event Organizer profile.', [], 409);
-            }
-
-            DB::beginTransaction();
-
-            $data = $validator->validated();
-            $data['eo_owner_id'] = auth()->id();
-
-            // Debug file upload extensively
-            if ($request->hasFile('logo')) {
-                $data['logo'] = $this->storeFile($request->file('logo'), 'event-organizers/logo');
-            }
-
-            $organizer = EventOrganizer::create($data);
-
-            DB::commit();
-
-            return $this->sendResponse(
-                $organizer,
-                'Event Organizer created successfully',
-                201
-            );
-        } catch (HttpResponseException $e) {
-            DB::rollBack();
-            throw $e;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error('Failed to create event organizer: ' . $e->getMessage(), [
-                'exception' => $e,
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
-            ]);
-
-            return $this->sendError(
-                'Failed to create Event Organizer',
-                ['error' => 'Server error occurred: ' . $e->getMessage()],
-                500
-            );
+        if ($request->hasFile('logo')) {
+            $data['logo'] = $this->storeFile($request->file('logo'), 'event-organizers/logo');
         }
+
+        $organizer = EventOrganizer::create($data);
+        return $this->sendResponse($organizer, 'Event Organizer created successfully', 201);
+    }
+
+    public function showMyProfile()
+    {
+        $organizer = Auth::user()->eventOrganizer()->with('documents')->firstOrFail();
+        return $this->sendResponse($organizer, 'Your profile retrieved successfully.');
     }
 
     public function update(Request $request, $id)
@@ -124,6 +76,7 @@ class EventOrganizerController extends BaseController
 
             $validator = Validator::make($request->all(), [
                 'name' => 'sometimes|required|string|max:255',
+                'organizer_type' => ['sometimes', Rule::enum(OrganizerTypeEnum::class)],
                 'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'description' => 'nullable|string',
                 'email_eo' => ['nullable', 'email', Rule::unique('event_organizers')->ignore($organizer->id)],

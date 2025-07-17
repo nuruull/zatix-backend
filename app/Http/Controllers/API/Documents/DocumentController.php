@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use App\Enum\Status\DocumentStatusEnum;
 use App\Http\Controllers\BaseController;
+use App\Actions\CheckEoVerificationStatus;
 use App\Notifications\DocumentStatusUpdated;
 use Illuminate\Validation\ValidationException;
 
@@ -172,6 +173,8 @@ class DocumentController extends BaseController
 
             DB::commit();
 
+            (new CheckEoVerificationStatus)->execute($document->getRelationValue('documentable'));
+            
             return $this->sendResponse($document, 'Document status updated successfully.');
 
         } catch (ValidationException $e) {
