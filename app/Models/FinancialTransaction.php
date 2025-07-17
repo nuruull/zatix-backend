@@ -10,7 +10,7 @@ class FinancialTransaction extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['event_id', 'type', 'description', 'category', 'amount', 'transaction_date', 'proof_trans_url', 'recorded_by_user_id'];
+    protected $fillable = ['event_id', 'order_id', 'type', 'description', 'category', 'amount', 'transaction_date', 'proof_trans_url', 'recorded_by_user_id'];
 
     protected $casts = [
         'type' => FinancialTransactionTypeEnum::class,
@@ -27,4 +27,9 @@ class FinancialTransaction extends Model
     {
         return $this->belongsTo(User::class, 'recorded_by_user_id');
     }
+
+    public function order()
+{
+    return $this->belongsTo(Order::class);
+}
 }

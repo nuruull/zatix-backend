@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 // use Illuminate\Support\Facades\Gate;
+use App\Models\Event;
 use App\Models\Rundown;
+use App\Policies\EventPolicy;
 use App\Models\EventOrganizer;
 use App\Policies\RundownPolicy;
 use App\Models\FinancialTransaction;
@@ -22,6 +24,7 @@ class AuthServiceProvider extends ServiceProvider
         Rundown::class => RundownPolicy::class,
         FinancialTransaction::class => FinancialTransactionPolicy::class,
         EventOrganizer::class => EventOrganizerPolicy::class,
+        Event::class => EventPolicy::class,
     ];
 
     /**
