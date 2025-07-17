@@ -4,21 +4,22 @@ namespace App\Notifications;
 
 use App\Models\Document;
 use Illuminate\Bus\Queueable;
+use App\Enum\Status\DocumentStatusEnum;
+use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 class DocumentStatusUpdated extends Notification
 {
     use Queueable;
-    public $document;
+    public Document $document;
 
     /**
      * Create a new notification instance.
      */
     public function __construct(Document $document)
     {
-        $this->document = $document;
+        $this->document = $document->loadMissing('documentable');
     }
 
     /**
@@ -36,25 +37,28 @@ class DocumentStatusUpdated extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $status = $this->document->status->value;
-        $eoName = $this->document->documentable->name; //EO Name
+        $eoName = $this->document->documentable->name;
 
+        // Inisialisasi MailMessage di awal
         $mailMessage = (new MailMessage)
-            ->subject('Update Verifikasi Dokumen untuk {$eoName}');
+            ->subject("Update Verifikasi Dokumen untuk {$eoName}"); // Gunakan kutip ganda
 
-        if ($status == 'verified') {
+        // Gunakan perbandingan Enum untuk keamanan tipe
+        if ($this->document->status === DocumentStatusEnum::VERIFIED) {
             $mailMessage
                 ->greeting('Selamat!')
                 ->line("Dokumen '{$this->document->type}' Anda untuk {$eoName} telah disetujui.")
-                ->line('Anda sekarang dapat melanjutkan untuk mempublikasikan event.')
-                ->action('Lihat Dashboard', url('/test'));
-        } elseif ($status == 'rejected') {
+                ->line('Tim kami akan meninjau kelengkapan dokumen Anda secara keseluruhan.')
+                ->action('Lihat Dashboard', url('/dashboard')); // Ganti dengan URL yang relevan
+        }
+
+        if ($this->document->status === DocumentStatusEnum::REJECTED) {
             $mailMessage
                 ->greeting('Pemberitahuan Verifikasi Dokumen')
-                ->line("Dokumen '{$this->document->type}' Anda untuk {$eoName} ditolak.")
+                ->line("Mohon maaf, dokumen '{$this->document->type}' Anda untuk {$eoName} ditolak.")
                 ->line("Alasan: " . $this->document->reason_rejected)
                 ->line('Silakan periksa dan unggah kembali dokumen yang sesuai.')
-                ->action('Periksa Dokumen', url('/test'));
+                ->action('Periksa Dokumen', url('/informasi-legal')); // Ganti dengan URL yang relevan
         }
 
         return $mailMessage->line('Terima kasih telah menggunakan aplikasi kami!');
@@ -71,7 +75,7 @@ class DocumentStatusUpdated extends Notification
             'document_id' => $this->document->id,
             'document_type' => $this->document->type,
             'status' => $this->document->status->value,
-            'message' => "Status dokumen '{$this->document->type}' Anda telah diperbarui menjadi '{$this->document->status->value}'."
+            'message' => "Status dokumen '{$this->document->type}' Anda telah diperbarui menjadi '{$this->document->status->value}'.",
         ];
     }
 }
