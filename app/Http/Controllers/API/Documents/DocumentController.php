@@ -23,8 +23,15 @@ class DocumentController extends BaseController
     use ManageFileTrait;
     public function store(Request $request)
     {
+        $eventOrganizer = Auth::user()->eventOrganizer;
+
+        // 2. Pastikan user sudah punya profil EO
+        if (!$eventOrganizer) {
+            return $this->sendError('You must create an Event Organizer profile before uploading documents.', [], 403);
+        }
+
+        // 3. Hapus 'event_organizer_id' dari validasi
         $validated = $request->validate([
-            'event_organizer_id' => 'required|exists:event_organizers,id',
             'type' => ['required', 'string', Rule::in(['ktp', 'npwp', 'nib'])],
             'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
             'number' => ['required', 'string', 'max:255'],
@@ -32,41 +39,28 @@ class DocumentController extends BaseController
             'address' => ['required', 'string', 'max:1000'],
         ]);
 
-        $eventOrganizer = EventOrganizer::findOrFail($validated['event_organizer_id']);
-
-        if (Auth::id() !== $eventOrganizer->eo_owner_id) {
-            return $this->sendError('Unauthorized. You are not the owner of this profile.', [], 403);
-        }
-
-        DB::beginTransaction();
         try {
-            if ($eventOrganizer->documents()->where('type', $validated['type'])->exists()) {
-                return $this->sendError('A document of this type already exists.', [], 409);
-            }
+            return DB::transaction(function () use ($eventOrganizer, $validated, $request) {
+                // Cek apakah dokumen dengan tipe ini sudah ada
+                if ($eventOrganizer->documents()->where('type', $validated['type'])->exists()) {
+                    return $this->sendError('A document of this type already exists for your profile.', [], 409);
+                }
 
-            $filePath = $this->storeFile($request->file('file'), 'documents/eo_' . $eventOrganizer->id);
-            if (!$filePath) {
-                DB::rollBack();
-                return $this->sendError('Failed to store the uploaded file.', [], 500);
-            }
+                // Simpan file
+                $filePath = $this->storeFile($request->file('file'), 'documents/eo_' . $eventOrganizer->id);
 
-            $document = $eventOrganizer->documents()->create([
-                'type' => $validated['type'],
-                'file' => $filePath,
-                'number' => $validated['number'],
-                'name' => $validated['name'],
-                'address' => $validated['address'],
-                'status' => DocumentStatusEnum::PENDING,
-            ]);
+                // Buat dokumen melalui relasi
+                $document = $eventOrganizer->documents()->create([
+                    'type' => $validated['type'],
+                    'file' => $filePath,
+                    'number' => $validated['number'],
+                    'name' => $validated['name'],
+                    'address' => $validated['address'],
+                    'status' => DocumentStatusEnum::PENDING,
+                ]);
 
-            $document->load('documentable');
-            DB::commit();
-
-            return $this->sendResponse(
-                $document,
-                'Document uploaded successfully.',
-                201
-            );
+                return $this->sendResponse($document, 'Document uploaded successfully.', 201);
+            });
         } catch (ValidationException $e) {
             DB::rollBack();
             return $this->sendError('Validation failed.', $e->errors(), 422);
@@ -174,7 +168,7 @@ class DocumentController extends BaseController
             DB::commit();
 
             (new CheckEoVerificationStatus)->execute($document->getRelationValue('documentable'));
-            
+
             return $this->sendResponse($document, 'Document status updated successfully.');
 
         } catch (ValidationException $e) {
