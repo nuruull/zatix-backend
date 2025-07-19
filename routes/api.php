@@ -135,6 +135,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
             });
             Route::middleware(['role:eo-owner'])->group(function () {
                 Route::post('/create', [DocumentController::class, 'store'])->name('store');
+                Route::post('/{document}/update', [DocumentController::class, 'update'])->name('documents.update');
             });
         });
 
