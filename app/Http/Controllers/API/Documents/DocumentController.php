@@ -184,4 +184,61 @@ class DocumentController extends BaseController
             return $this->sendError('Failed to update document status.', ['detail' => $th->getMessage()], 500);
         }
     }
+
+    public function update(Request $request, Document $document)
+    {
+        $eventOrganizer = Auth::user()->eventOrganizer;
+
+        // 1. Authorization Check: Ensure the user owns this document.
+        if ($document->documentable_id !== $eventOrganizer->id || $document->documentable_type !== get_class($eventOrganizer)) {
+            return $this->sendError('You are not authorized to update this document.', [], 403);
+        }
+
+        // 2. Status Check: Only allow updates for rejected documents.
+        if ($document->status !== DocumentStatusEnum::REJECTED) {
+            return $this->sendError('Only rejected documents can be updated. This document is currently ' . $document->status->value . '.', [], 409);
+        }
+
+        // 3. Validation: Validate the new data and file.
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
+            'number' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'address' => ['required', 'string', 'max:1000'],
+        ]);
+
+        try {
+            return DB::transaction(function () use ($document, $eventOrganizer, $validated, $request) {
+                // Keep track of the old file path to delete it after the update
+                $oldFilePath = $document->file;
+
+                // Store the new file
+                $newFilePath = $this->storeFile($request->file('file'), 'documents/eo_' . $eventOrganizer->id);
+
+                // Update the document record with new data
+                $document->update([
+                    'file' => $newFilePath,
+                    'number' => $validated['number'],
+                    'name' => $validated['name'],
+                    'address' => $validated['address'],
+                    'status' => DocumentStatusEnum::PENDING, // Reset status to PENDING for re-verification
+                    'reason_rejected' => null, // Clear the rejection reason
+                ]);
+
+                // Delete the old file from storage
+                if ($oldFilePath) {
+                    $this->deleteFile($oldFilePath); // Assumes you have a deleteFile method in ManageFileTrait
+                }
+
+                return $this->sendResponse($document, 'Document updated successfully and is pending review.', 200);
+            });
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return $this->sendError('Validation failed.', $e->errors(), 422);
+        } catch (Throwable $th) {
+            DB::rollBack();
+            Log::error('Error updating EO document: ' . $th->getMessage());
+            return $this->sendError('Failed to update the document.', [], 500);
+        }
+    }
 }
