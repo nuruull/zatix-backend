@@ -29,6 +29,13 @@ class Event extends Model
         'is_public',
     ];
 
+    protected $casts = [
+        'start_date' => 'date', // <-- TAMBAHKAN INI
+        'end_date' => 'date',   // <-- TAMBAHKAN INI
+        'is_published' => 'boolean',
+        'is_public' => 'boolean',
+    ];
+
     protected function casts(): array
     {
         return [

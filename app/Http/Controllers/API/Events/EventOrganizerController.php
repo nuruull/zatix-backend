@@ -24,7 +24,7 @@ class EventOrganizerController extends BaseController
     public function index()
     {
         $this->authorize('viewAny', EventOrganizer::class);
-        $organizers = EventOrganizer::with('eo_owner:id,name')->latest()->get();
+        $organizers = EventOrganizer::with(['eo_owner:id,name', 'documents'])->latest()->get();
         return $this->sendResponse($organizers, 'List of Event Organizers');
     }
 
