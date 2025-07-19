@@ -45,8 +45,8 @@ class EventOrganizerController extends BaseController
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'description' => 'nullable|string',
             'email_eo' => 'nullable|email|unique:event_organizers,email_eo',
-            'phone_no_eo' => 'required|string|max:20',
-            'address_eo' => 'required|string|max:1000',
+            'phone_no_eo' => 'nullable|string|max:20',
+            'address_eo' => 'nullable|string|max:1000',
         ]);
 
         $data['eo_owner_id'] = Auth::id();
