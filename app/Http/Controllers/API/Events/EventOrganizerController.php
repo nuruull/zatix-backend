@@ -14,6 +14,7 @@ use App\Http\Controllers\BaseController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\NewVerificationRequest;
+use App\Http\Resources\EventOrganizerResource;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
@@ -56,7 +57,7 @@ class EventOrganizerController extends BaseController
         }
 
         $organizer = EventOrganizer::create($data);
-        return $this->sendResponse($organizer, 'Event Organizer created successfully', 201);
+        return $this->sendResponse(new EventOrganizerResource($organizer), 'Event Organizer created successfully', 201);
     }
 
     public function showMyProfile()
@@ -109,7 +110,7 @@ class EventOrganizerController extends BaseController
             DB::commit();
 
             return $this->sendResponse(
-                $organizer,
+                new EventOrganizerResource($organizer),
                 'Event Organizer updated successfully'
             );
 

@@ -17,6 +17,7 @@ class Event extends Model
         'eo_id',
         'tnc_id',
         'name',
+        'poster',
         'description',
         'start_date',
         'start_time',
