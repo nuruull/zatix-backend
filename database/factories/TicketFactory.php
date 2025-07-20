@@ -29,7 +29,7 @@ class TicketFactory extends Factory
         return [
             'event_id' => Event::factory(),
             // Asumsikan Anda punya factory untuk TicketType
-            'ticket_type_id' => TicketType::factory(),
+            'ticket_type_id' => TicketType::query()->inRandomOrder()->value('id') ?? TicketType::factory(),
             'name' => $this->faker->randomElement(['Regular', 'VIP', 'Early Bird', 'Presale 1']),
             'price' => $this->faker->numberBetween(5, 50) * 10000, // Harga antara 50rb - 500rb
             'stock' => $this->faker->numberBetween(100, 1000),
