@@ -201,6 +201,7 @@ class DocumentController extends BaseController
 
         // 3. Validation: Validate the new data and file.
         $validated = $request->validate([
+            'type' => ['required', 'string', Rule::in(['ktp', 'npwp', 'nib'])],
             'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
             'number' => ['required', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
@@ -217,6 +218,7 @@ class DocumentController extends BaseController
 
                 // Update the document record with new data
                 $document->update([
+                    'type' => $validated['type'],
                     'file' => $newFilePath,
                     'number' => $validated['number'],
                     'name' => $validated['name'],
