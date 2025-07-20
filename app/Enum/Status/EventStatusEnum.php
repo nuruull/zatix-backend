@@ -6,14 +6,16 @@ enum EventStatusEnum: string
 {
     case DRAFT = 'draft';
     case ACTIVE = 'active';
-    case COMPLETED = 'completed';
+    case INACTIVE = 'inactive';
+    case ARCHIVE = 'archive';
 
     public function label(): string
     {
         return match ($this) {
             self::DRAFT => 'Draft',
             self::ACTIVE => 'Active',
-            self::COMPLETED => 'Completed',
+            self::INACTIVE => 'Inactive',
+            self::ARCHIVE => 'Archive',
         };
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API\Events;
 
+use App\Http\Resources\EventResource;
 use Carbon\Carbon;
 use App\Models\Event;
 use App\Models\TncStatus;
@@ -61,6 +62,7 @@ class EventController extends BaseController
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
+                'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
                 'start_date' => 'required|date',
                 'start_time' => 'required|date_format:H:i',
                 'end_date' => 'required|date|after_or_equal:start_date',
@@ -126,10 +128,16 @@ class EventController extends BaseController
                 );
             }
 
-            $event = DB::transaction(function () use ($validatedData, $user, $eventTnc, $organizer) {
+            $event = DB::transaction(function () use ($validatedData, $user, $eventTnc, $organizer, $request) {
+                $posterPath = null;
+                if ($request->hasFile('poster')) {
+                    $posterPath = $this->storeFile($request->file('poster'), 'event_posters');
+                }
+
                 $createdEvent = Event::create([
                     'eo_id' => $organizer->id,
                     'name' => $validatedData['name'],
+                    'poster' => $posterPath,
                     'description' => $validatedData['description'],
                     'start_date' => $validatedData['start_date'],
                     'start_time' => $validatedData['start_time'],
@@ -162,7 +170,7 @@ class EventController extends BaseController
             });
 
             return $this->sendResponse(
-                $event,
+                new EventResource($event),
                 'Event created successfully',
                 201
             );
@@ -190,11 +198,11 @@ class EventController extends BaseController
         if ($event->status !== EventStatusEnum::DRAFT) {
             return response()->json(['message' => 'Only draft events can be updated'], 403);
         }
-
         try {
             $validated = $request->validate([
-                'name' => 'sometimes|required|string|max:255',
+                'name' => 'sometimes|string|max:255',
                 'description' => 'nullable|string',
+                'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
                 'start_date' => 'sometimes|required|date',
                 'start_time' => 'sometimes|required|date_format:H:i',
                 'end_date' => 'sometimes|required|date|after_or_equal:start_date',
@@ -213,11 +221,26 @@ class EventController extends BaseController
                 'tickets.*.ticket_type_id' => 'required_with:tickets|exists:ticket_types,id',
             ]);
 
-            $updatedEvent = DB::transaction(function () use ($validated, $event) {
+            $updatedEvent = DB::transaction(function () use ($validated, $event, $request) {
 
                 // Update data dasar event dengan data yang divalidasi,
                 // kecuali data relasi (facilities, tickets)
-                $eventData = Arr::except($validated, ['facilities', 'tickets']);
+                $eventData = Arr::except($validated, ['facilities', 'tickets', 'poster']);
+
+                if ($request->hasFile('poster')) {
+                    if ($event->poster) {
+                        $this->deleteFile($event->poster); // Hapus poster lama
+                    }
+                    $posterPath = $this->storeFile($request->file('poster'), 'event_posters');
+                    $eventData['poster'] = $posterPath; // Tambahkan path poster baru ke data update
+                } elseif (array_key_exists('poster', $validated) && is_null($validated['poster'])) {
+                    // Jika 'poster' ada di validated data dan nilainya null, berarti ingin menghapus poster yang ada
+                    if ($event->poster) {
+                        $this->deleteFile($event->poster);
+                        $eventData['poster'] = null; // Set poster ke null di database
+                    }
+                }
+
                 if (!empty($eventData)) {
                     $event->update($eventData);
                 }
@@ -249,7 +272,7 @@ class EventController extends BaseController
 
                 return $event->fresh(['facilities', 'tickets']);
             });
-            return $this->sendResponse($updatedEvent, 'Event updated successfully');
+            return $this->sendResponse(new EventResource($updatedEvent), 'Event updated successfully');
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'message' => 'Event not found'
@@ -285,11 +308,18 @@ class EventController extends BaseController
                 return response()->json(['message' => 'Event not found'], 404);
             }
 
-            $event->facilities()->detach();
+            if (Auth::id() !== $event->eventOrganizer->eo_owner_id) {
+                return $this->sendError('You are not authorized to delete this event.', [], 403);
+            }
 
-            $event->tickets()->delete();
-
-            $event->delete();
+            DB::transaction(function () use ($event) {
+                if ($event->poster) {
+                    $this->deleteFile($event->poster);
+                }
+                $event->facilities()->detach();
+                $event->tickets()->delete();
+                $event->delete();
+            });
 
             return response()->json(['message' => 'Event deleted successfully']);
         } catch (\Exception $e) {

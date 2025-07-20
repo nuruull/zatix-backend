@@ -268,12 +268,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     Route::prefix('cashier')
-    ->name('cashier.')
-    ->middleware(['role:cashier'])
-    ->group(function () {
-        Route::post('/sales', [OfflineSalesController::class, 'store'])->name('sales.store');
+        ->name('cashier.')
+        ->middleware(['role:cashier'])
+        ->group(function () {
+            Route::post('/sales', [OfflineSalesController::class, 'store'])->name('sales.store');
 
-    });
+        });
 });
 
 Route::get('/reset-database', function () {
