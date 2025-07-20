@@ -11,6 +11,7 @@ use App\Http\Controllers\API\Events\StaffController;
 use App\Http\Controllers\API\Events\RundownController;
 use App\Http\Controllers\API\Events\EventTncController;
 use App\Http\Controllers\API\Log\ActivityLogController;
+use App\Http\Controllers\API\Admin\TicketTypeController;
 use App\Http\Controllers\API\Auth\NewPasswordController;
 use App\Http\Controllers\API\General\CarouselController;
 use App\Http\Controllers\API\Tickets\MyTicketController;
@@ -76,8 +77,6 @@ Route::post('/webhooks/midtrans', [MidtransWebhookController::class, 'handle'])-
 
 //membuat sebuah endpoint di aplikasi Laravel Anda yang meniru respons sukses dari Midtrans secepat mungkin.
 Route::post('/mock/charge', function () {
-    // Endpoint ini meniru respons sukses dari Midtrans secepat mungkin.
-    // Tidak ada logika, hanya mengembalikan JSON.
     return response()->json([
         'transaction_id' => 'mock-tx-' . uniqid(),
         'order_id' => request('transaction_details.order_id', 'mock-order-' . uniqid()),
@@ -90,21 +89,6 @@ Route::post('/mock/charge', function () {
         ],
         'expiry_time' => now()->addDay()->toDateTimeString(),
     ]);
-});
-
-Route::get('/debug-permissions', function () {
-    if (Auth::check()) {
-        $user = Auth::user();
-        return response()->json([
-            'user_id' => $user->id,
-            'name' => $user->name,
-            'roles' => $user->getRoleNames(),
-            'permissions_from_roles' => $user->getPermissionsViaRoles()->pluck('name'),
-            'can_view_carousels' => $user->can('view-any-carousels')
-        ]);
-    } else {
-        return response()->json(['message' => 'Not authenticated'], 401);
-    }
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -125,6 +109,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::put('/{organizer}', [EventOrganizerController::class, 'update'])->name('update');
         });
 
+    Route::prefix('ticket-types')
+        ->name('ticket-types.')
+        ->middleware(['role:super-admin'])
+        ->group(function () {
+            Route::get('/', [TicketTypeController::class, 'index'])->name('index');
+            Route::post('/create', [TicketTypeController::class, 'store'])->name('create');
+            Route::put('/{ticketType}', [TicketTypeController::class, 'update'])->name('update');
+            Route::delete('/{ticketType}', [TicketTypeController::class, 'destroy']);
+        });
+
     Route::prefix('documents')
         ->name('documents.')
         ->group(function () {
@@ -135,7 +129,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
             });
             Route::middleware(['role:eo-owner'])->group(function () {
                 Route::post('/create', [DocumentController::class, 'store'])->name('store');
-                Route::post('/{document}/update', [DocumentController::class, 'update'])->name('documents.update');
+                Route::post('/{document}/update', [DocumentController::class, 'update'])->name('update');
             });
         });
 
@@ -219,7 +213,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::delete('/{id}', [TermAndConController::class, 'destroy'])->name('destroy');
         });
 
-    //commit carousel api to git
     Route::prefix('carousels')
         ->name('carousels.')
         ->middleware(['role:super-admin'])
@@ -231,7 +224,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::delete('/{id}/destroy', [CarouselController::class, 'destroy'])->name('destroy');
         });
 
-    //create endpoint for activity log
     Route::middleware(['can:view-activity-logs'])->get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
 
     Route::prefix('orders')

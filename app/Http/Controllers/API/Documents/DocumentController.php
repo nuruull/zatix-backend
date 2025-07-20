@@ -189,17 +189,14 @@ class DocumentController extends BaseController
     {
         $eventOrganizer = Auth::user()->eventOrganizer;
 
-        // 1. Authorization Check: Ensure the user owns this document.
         if ($document->documentable_id !== $eventOrganizer->id || $document->documentable_type !== get_class($eventOrganizer)) {
             return $this->sendError('You are not authorized to update this document.', [], 403);
         }
 
-        // 2. Status Check: Only allow updates for rejected documents.
         if ($document->status !== DocumentStatusEnum::REJECTED) {
-            return $this->sendError('Only rejected documents can be updated. This document is currently ' . $document->status->value . '.', [], 409);
+            return $this->sendError('Only rejected documents can be re-submitted.', ['current_status' => $document->status->value], 409);
         }
 
-        // 3. Validation: Validate the new data and file.
         $validated = $request->validate([
             'type' => ['required', 'string', Rule::in(['ktp', 'npwp', 'nib'])],
             'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
@@ -209,38 +206,31 @@ class DocumentController extends BaseController
         ]);
 
         try {
-            return DB::transaction(function () use ($document, $eventOrganizer, $validated, $request) {
-                // Keep track of the old file path to delete it after the update
-                $oldFilePath = $document->file;
+            $newDocument = DB::transaction(function () use ($document, $eventOrganizer, $validated, $request) {
 
-                // Store the new file
                 $newFilePath = $this->storeFile($request->file('file'), 'documents/eo_' . $eventOrganizer->id);
 
-                // Update the document record with new data
-                $document->update([
+                $createdDocument = $eventOrganizer->documents()->create([
                     'type' => $validated['type'],
                     'file' => $newFilePath,
                     'number' => $validated['number'],
                     'name' => $validated['name'],
                     'address' => $validated['address'],
-                    'status' => DocumentStatusEnum::PENDING, // Reset status to PENDING for re-verification
-                    'reason_rejected' => null, // Clear the rejection reason
+                    'status' => DocumentStatusEnum::PENDING,
                 ]);
 
-                // Delete the old file from storage
-                if ($oldFilePath) {
-                    $this->deleteFile($oldFilePath); // Assumes you have a deleteFile method in ManageFileTrait
-                }
+                //UBAH (UPDATE) status dokumen LAMA menjadi 'replaced'
+                $document->status = DocumentStatusEnum::REPLACED;
+                $document->save();
 
-                return $this->sendResponse($document, 'Document updated successfully and is pending review.', 200);
+                return $createdDocument;
             });
-        } catch (ValidationException $e) {
-            DB::rollBack();
-            return $this->sendError('Validation failed.', $e->errors(), 422);
+
+            return $this->sendResponse($newDocument, 'Document re-submitted successfully and is pending review.', 200);
+
         } catch (Throwable $th) {
-            DB::rollBack();
-            Log::error('Error updating EO document: ' . $th->getMessage());
-            return $this->sendError('Failed to update the document.', [], 500);
+            Log::error('Error re-submitting EO document: ' . $th->getMessage());
+            return $this->sendError('Failed to re-submit the document.', ['detail' => $th->getMessage()], 500);
         }
     }
 }
