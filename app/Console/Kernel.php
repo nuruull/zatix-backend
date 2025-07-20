@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
         $schedule->command('demo:revoke-permissions')->daily();
+        $schedule->command('events:update-status')->daily();
     }
 
     /**
@@ -22,7 +23,7 @@ class Kernel extends ConsoleKernel
     protected function commands(): void
     {
         $this->load(__DIR__ . '/Commands');
-        
+
         require base_path('routes/console.php');
     }
 }

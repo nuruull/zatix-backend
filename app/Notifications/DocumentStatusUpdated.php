@@ -72,7 +72,7 @@ class DocumentStatusUpdated extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'document_id' => $this->document->id,
+            'document_id' => $this->document->id,   
             'document_type' => $this->document->type,
             'status' => $this->document->status->value,
             'message' => "Status dokumen '{$this->document->type}' Anda telah diperbarui menjadi '{$this->document->status->value}'.",

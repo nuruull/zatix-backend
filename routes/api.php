@@ -173,6 +173,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
             Route::post('/{event}/publish', [EventController::class, 'publish'])->name('publish');
             Route::post('/{event}/public', [EventController::class, 'publicStatus'])->name('public');
+            Route::post('/{event}/deactivate', [EventController::class, 'deactivate'])->name('deactivate');
+            Route::post('/{event}/archive', [EventController::class, 'archive'])->name('archive');
         });
 
     Route::prefix('admin')

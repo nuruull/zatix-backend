@@ -415,4 +415,56 @@ class EventController extends BaseController
             );
         }
     }
+
+    public function deactivate(Event $event)
+    {
+        // dd($event->status);
+        if (Auth::id() !== $event->eventOrganizer->eo_owner_id) {
+            return $this->sendError('You are not authorized to deactivate this event.', [], 403);
+        }
+
+        if ($event->status !== EventStatusEnum::ACTIVE) {
+            return $this->sendError('Only active events can be deactivated.', ['current_status' => $event->status], 400);
+        }
+
+        try {
+            // Ubah status menjadi 'inactive'
+            $event->update([
+                'status' => EventStatusEnum::INACTIVE->value,
+                'is_published' => false,
+                'is_public' => false,
+            ]);
+
+            return $this->sendResponse(
+                new EventResource($event),
+                'Event has been successfully deactivated.'
+            );
+        } catch (\Exception $e) {
+            Log::error('Failed to deactivate event ID ' . $event->id . ': ' . $e->getMessage());
+            return $this->sendError('An unexpected error occurred while deactivating the event.', [], 500);
+        }
+    }
+
+    public function archive(Event $event)
+    {
+        if (Auth::id() !== $event->eventOrganizer->eo_owner_id) {
+            return $this->sendError('You are not authorized to archive this event.', [], 403);
+        }
+
+        if ($event->status !== EventStatusEnum::INACTIVE) {
+            return $this->sendError('Only inactive events can be archived.', ['current_status' => $event->status], 400);
+        }
+
+        try {
+            $event->update(['status' => EventStatusEnum::ARCHIVE->value]);
+
+            return $this->sendResponse(
+                new EventResource($event),
+                'Event has been successfully archived.'
+            );
+        } catch (\Exception $e) {
+            Log::error('Failed to archive event ID ' . $event->id . ': ' . $e->getMessage());
+            return $this->sendError('An unexpected error occurred while archiving the event.', [], 500);
+        }
+    }
 }
