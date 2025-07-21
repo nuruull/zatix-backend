@@ -191,6 +191,7 @@ class EventController extends BaseController
 
     public function update(Request $request, Event $event)
     {
+        // dd($event->is_published);
         if (Auth::id() !== $event->eventOrganizer->eo_owner_id) {
             return $this->sendError('You are not authorized to update this event.', [], 403);
         }
@@ -198,46 +199,57 @@ class EventController extends BaseController
         if ($event->status !== EventStatusEnum::DRAFT) {
             return response()->json(['message' => 'Only draft events can be updated'], 403);
         }
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'description' => 'nullable|string',
+            'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
+            'start_date' => 'sometimes|required|date',
+            'start_time' => 'sometimes|required|date_format:H:i',
+            'end_date' => 'sometimes|required|date|after_or_equal:start_date',
+            'end_time' => 'sometimes|required|date_format:H:i',
+            'location' => 'sometimes|required|string|max:255',
+            'contact_phone' => 'sometimes|required|string|max:20',
+            'is_public' => 'sometimes|boolean', // <-- TAMBAHKAN INI
+            'facilities' => 'nullable|array|exists:facilities,id',
+            'tickets' => 'nullable|array',
+            'tickets.*.id' => 'sometimes|required|exists:tickets,id',
+            'tickets.*.name' => 'required_with:tickets|string|max:255',
+            'tickets.*.price' => 'required_with:tickets|numeric|min:0',
+            'tickets.*.stock' => 'required_with:tickets|integer|min:0',
+            'tickets.*.limit' => 'required_with:tickets|integer|min:1',
+            'tickets.*.start_date' => 'required_with:tickets|date', // Hapus before_or_equal untuk fleksibilitas
+            'tickets.*.end_date' => 'required_with:tickets|date',   // Hapus before_or_equal untuk fleksibilitas
+            'tickets.*.ticket_type_id' => 'required_with:tickets|exists:ticket_types,id',
+        ]);
+
+        $isOnlyChangingVisibility = count($validated) === 1 && isset($validated['is_public']);
+
         try {
-            $validated = $request->validate([
-                'name' => 'sometimes|string|max:255',
-                'description' => 'nullable|string',
-                'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
-                'start_date' => 'sometimes|required|date',
-                'start_time' => 'sometimes|required|date_format:H:i',
-                'end_date' => 'sometimes|required|date|after_or_equal:start_date',
-                'end_time' => 'sometimes|required|date_format:H:i',
-                'location' => 'sometimes|required|string|max:255',
-                'contact_phone' => 'sometimes|required|string|max:20',
-                'facilities' => 'nullable|array|exists:facilities,id',
-                'tickets' => 'nullable|array',
-                'tickets.*.id' => 'sometimes|required|exists:tickets,id',
-                'tickets.*.name' => 'required_with:tickets|string|max:255',
-                'tickets.*.price' => 'required_with:tickets|numeric|min:0',
-                'tickets.*.stock' => 'required_with:tickets|integer|min:0',
-                'tickets.*.limit' => 'required_with:tickets|integer|min:1',
-                'tickets.*.start_date' => 'required_with:tickets|date|before_or_equal:start_date',
-                'tickets.*.end_date' => 'required_with:tickets|date|before_or_equal:start_date',
-                'tickets.*.ticket_type_id' => 'required_with:tickets|exists:ticket_types,id',
-            ]);
+            if ($isOnlyChangingVisibility) {
+                if ($event->status !== EventStatusEnum::ACTIVE) {
+                    return $this->sendError('Only active (published) events can be made public or private.', [], 403);
+                }
+
+                $event->update(['is_public' => $validated['is_public']]);
+                $newStatus = $event->is_public ? 'Public' : 'Private';
+                return $this->sendResponse($event, 'Event visibility has been successfully changed to ' . $newStatus);
+            }
+
+            if ($event->status !== EventStatusEnum::DRAFT) {
+                return $this->sendError('Only draft events can be fully updated. To change visibility, please send the \'is_public\' field only.', [], 403);
+            }
 
             $updatedEvent = DB::transaction(function () use ($validated, $event, $request) {
-
-                // Update data dasar event dengan data yang divalidasi,
-                // kecuali data relasi (facilities, tickets)
                 $eventData = Arr::except($validated, ['facilities', 'tickets', 'poster']);
 
                 if ($request->hasFile('poster')) {
-                    if ($event->poster) {
-                        $this->deleteFile($event->poster); // Hapus poster lama
-                    }
-                    $posterPath = $this->storeFile($request->file('poster'), 'event_posters');
-                    $eventData['poster'] = $posterPath; // Tambahkan path poster baru ke data update
+                    if ($event->poster)
+                        $this->deleteFile($event->poster);
+                    $eventData['poster'] = $this->storeFile($request->file('poster'), 'event_posters');
                 } elseif (array_key_exists('poster', $validated) && is_null($validated['poster'])) {
-                    // Jika 'poster' ada di validated data dan nilainya null, berarti ingin menghapus poster yang ada
                     if ($event->poster) {
                         $this->deleteFile($event->poster);
-                        $eventData['poster'] = null; // Set poster ke null di database
+                        $eventData['poster'] = null;
                     }
                 }
 
@@ -245,34 +257,36 @@ class EventController extends BaseController
                     $event->update($eventData);
                 }
 
-                // Sync facilities jika ada di dalam request
                 if (array_key_exists('facilities', $validated)) {
                     $event->facilities()->sync($validated['facilities'] ?? []);
                 }
 
-                // Handle create/update tickets jika ada di dalam request
                 if (array_key_exists('tickets', $validated)) {
                     $ticketIdsToKeep = [];
                     foreach ($validated['tickets'] ?? [] as $ticketData) {
-                        if (!empty($ticketData['id'])) {
-                            // Update tiket yang sudah ada
-                            $ticket = $event->tickets()->find($ticketData['id']);
+                        $ticketId = $ticketData['id'] ?? null;
+                        if ($ticketId) {
+                            // Update
+                            $ticket = $event->tickets()->find($ticketId);
                             if ($ticket) {
-                                $ticket->update($ticketData);
+                                $ticket->update(Arr::except($ticketData, ['id']));
                                 $ticketIdsToKeep[] = $ticket->id;
                             }
                         } else {
-                            // Buat tiket baru
+                            // Create
                             $newTicket = $event->tickets()->create($ticketData);
                             $ticketIdsToKeep[] = $newTicket->id;
                         }
                     }
+                    // Delete tickets yang tidak ada di request
                     $event->tickets()->whereNotIn('id', $ticketIdsToKeep)->delete();
                 }
 
                 return $event->fresh(['facilities', 'tickets']);
             });
+
             return $this->sendResponse(new EventResource($updatedEvent), 'Event updated successfully');
+
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'message' => 'Event not found'
@@ -377,42 +391,6 @@ class EventController extends BaseController
             DB::rollBack();
             Log::error('Failed to publish event: ' . $e->getMessage());
             return response()->json(['message' => 'Failed to publish event'], 500);
-        }
-    }
-
-    public function publicStatus(Request $request, Event $event)
-    {
-        if (Auth::id() !== $event->eventOrganizer->eo_owner_id) {
-            return $this->sendError('You are not authorized to change this event\'s visibility.', [], 403);
-        }
-
-        if (!$event->is_published) {
-            return $this->sendError('Only published events can be made public or private.', [], 422);
-        }
-
-        try {
-            $event->update([
-                'is_public' => !$event->is_public
-            ]);
-
-            $newStatus = $event->is_public ? 'Public' : 'Private';
-
-            return $this->sendResponse(
-                $event,
-                'Event visibility has been successfully changed to ' . $newStatus
-            );
-
-        } catch (\Exception $e) {
-            Log::error('Failed to toggle public status for event ID: ' . $event->id, [
-                'error_message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return $this->sendError(
-                'An unexpected error occurred while changing the event status. Please try again later.',
-                [],
-                500
-            );
         }
     }
 

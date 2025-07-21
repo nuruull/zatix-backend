@@ -28,6 +28,7 @@ class EventResource extends JsonResource
             'location' => $this->location,
             'status' => $this->status,
             'is_published' => (bool) $this->is_published,
+            'is_public' => (bool) $this->is_public,
             'poster_url' => $this->when($this->poster, Storage::url($this->poster)),
             'organizer' => new EventOrganizerResource($this->whenLoaded('eventOrganizer')),
         ];
