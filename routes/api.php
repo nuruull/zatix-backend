@@ -25,6 +25,7 @@ use App\Http\Controllers\API\General\NotificationController;
 use App\Http\Controllers\API\Events\EventOrganizerController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
 use App\Http\Controllers\API\Tickets\TicketValidationController;
+use App\Http\Controllers\API\Transactions\PaymentMethodController;
 use App\Http\Controllers\API\Transactions\MidtransWebhookController;
 use App\Http\Controllers\API\Transactions\FinancialTransactionController;
 
@@ -74,6 +75,8 @@ Route::prefix('carousels')
     });
 
 Route::post('/webhooks/midtrans', [MidtransWebhookController::class, 'handle'])->name('webhooks.midtrans');
+
+Route::get('/payment-methods', [PaymentMethodController::class, 'index']);
 
 //membuat sebuah endpoint di aplikasi Laravel Anda yang meniru respons sukses dari Midtrans secepat mungkin.
 Route::post('/mock/charge', function () {
