@@ -39,7 +39,6 @@ class AuthController extends BaseController
         }
     }
 
-
     public function register(Request $request)
     {
         try {
