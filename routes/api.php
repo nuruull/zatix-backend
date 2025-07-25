@@ -232,6 +232,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->name('orders.')
         ->group(function () {
             Route::post('/', [OrderController::class, 'store'])->name('store');
+            Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         });
 
     Route::prefix('e-tickets')
