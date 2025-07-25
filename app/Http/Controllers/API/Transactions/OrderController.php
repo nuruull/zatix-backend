@@ -141,8 +141,11 @@ class OrderController extends BaseController
 
             $this->createTransactionRecords($order, $midtransResponse, $paymentMethod->id);
 
+            $response_data = (array) $midtransResponse;
+            $response_data['order_id'] = $order->id; // Tambahkan order_id di sini
+
             return $this->sendResponse(
-                $midtransResponse,
+                $response_data,
                 'Payment details retrieved successfully. Please complete the payment.'
             );
 
@@ -225,5 +228,16 @@ class OrderController extends BaseController
             'qris_url' => $midtransResponse->actions[0]->url ?? null,
             'expiry_at' => $midtransResponse->expiry_time,
         ]);
+    }
+
+    public function show(Order $order)
+    {
+        if ($order->user_id !== Auth::id()) {
+            return $this->sendError('Not Found', 'The requested order was not found.', 404);
+        }
+
+        $order->load(['orderItems.ticket', 'event', 'transactions.paymentDetail']);
+
+        return $this->sendResponse($order, 'Order details retrieved successfully.');
     }
 }
