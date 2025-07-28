@@ -48,7 +48,7 @@ class EventSeeder extends Seeder
         $eventsData = [
             [
                 'name' => 'Workshop Fotografi: Teknik Dasar',
-                'poster' => 'event_posters/Workshop-Fotografi.jpg',
+                'poster' => 'Workshop-Fotografi.jpg',
                 'description' => 'Belajar teknik dasar fotografi dari para profesional. Event ini masih dalam bentuk draf.',
                 'start_date' => Carbon::now()->addWeeks(2),
                 'end_date' => Carbon::now()->addWeeks(2),
@@ -58,7 +58,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Konser Amal Kemerdekaan 2025',
-                'poster' => 'event_posters/konser-amal.jpg',
+                'poster' => 'konser-amal.jpg',
                 'description' => 'Konser musik untuk menggalang dana bagi para veteran. Terbuka untuk umum.',
                 'start_date' => Carbon::now()->addMonth(1),
                 'end_date' => Carbon::now()->addMonth(1),
@@ -68,7 +68,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Private Gathering: Alumni Angkatan 2010',
-                'poster' => 'event_posters/private-event.jpg',
+                'poster' => 'private-event.jpg',
                 'description' => 'Acara kumpul-kumpul khusus untuk alumni angkatan 2010. Akses hanya melalui link undangan.',
                 'start_date' => Carbon::now()->addMonths(2),
                 'end_date' => Carbon::now()->addMonths(2),
@@ -78,7 +78,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Konser BTS: Comeback From Military',
-                'poster' => 'event_posters/poster-konserjpeg.jpeg',
+                'poster' => 'poster-konserjpeg.jpeg',
                 'description' => 'BTS mengadakan konser untuk army setelah kepulangan 7 member dari wamil',
                 'start_date' => Carbon::now()->addMonths(2),
                 'end_date' => Carbon::now()->addMonths(2),
@@ -88,7 +88,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Workshop Flower Bouqet',
-                'poster' => 'event_posters/workshop-bunga.jpg',
+                'poster' => 'workshop-bunga.jpg',
                 'description' => 'Pada workshop ini mengajak wanita-wanita indonesia mempelajari cara membuat buket bunga',
                 'start_date' => Carbon::now()->addMonths(2),
                 'end_date' => Carbon::now()->addMonths(2),
@@ -98,7 +98,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Konser TXT: Eternally',
-                'poster' => 'event_posters/konser-txt.jpg',
+                'poster' => 'konser-txt.jpg',
                 'description' => 'Konser TXT diadakan di Indonesia',
                 'start_date' => Carbon::now()->addMonths(2),
                 'end_date' => Carbon::now()->addMonths(2),
@@ -109,38 +109,38 @@ class EventSeeder extends Seeder
         ];
 
         foreach ($eventsData as $data) {
-            // Buat event utama
-            $event = $organizer->events()->create([
-                'name' => $data['name'],
-                'poster' => Storage::url($data['poster']),
-                'description' => $data['description'],
-                'start_date' => $data['start_date']->toDateString(),
-                'start_time' => '19:00',
-                'end_date' => $data['end_date']->toDateString(),
-                'end_time' => '23:00',
-                'location' => 'Gedung Serbaguna Kota Fiktif',
-                'contact_phone' => $organizer->phone_no_eo,
-                'tnc_id' => $tnc->id,
-                'status' => $data['status'],
-                'is_published' => $data['is_published'],
-                'is_public' => $data['is_public'],
-            ]);
+                // Buat event utama
+                $event = $organizer->events()->create([
+                    'name' => $data['name'],
+                    'poster' => 'event_posters/' . $data['poster'],
+                    'description' => $data['description'],
+                    'start_date' => $data['start_date']->toDateString(),
+                    'start_time' => '19:00',
+                    'end_date' => $data['end_date']->toDateString(),
+                    'end_time' => '23:00',
+                    'location' => 'Gedung Serbaguna Kota Fiktif',
+                    'contact_phone' => $organizer->phone_no_eo,
+                    'tnc_id' => $tnc->id,
+                    'status' => $data['status'],
+                    'is_published' => $data['is_published'],
+                    'is_public' => $data['is_public'],
+                ]);
 
-            // Tambahkan fasilitas ke event
-            if ($facilities->isNotEmpty()) {
-                $event->facilities()->sync($facilities->toArray());
-            }
+                // Tambahkan fasilitas ke event
+                if ($facilities->isNotEmpty()) {
+                    $event->facilities()->sync($facilities->toArray());
+                }
 
-            // Buat satu jenis tiket untuk setiap event
-            $event->tickets()->create([
-                'name' => 'Tiket Regular',
-                'price' => 150000,
-                'stock' => 500,
-                'limit' => 5,
-                'start_date' => Carbon::now(),
-                'end_date' => $data['start_date'],
-                'ticket_type_id' => $ticketType->id,
-            ]);
+                // Buat satu jenis tiket untuk setiap event
+                $event->tickets()->create([
+                    'name' => 'Tiket Regular',
+                    'price' => 150000,
+                    'stock' => 500,
+                    'limit' => 5,
+                    'start_date' => Carbon::now(),
+                    'end_date' => $data['start_date'],
+                    'ticket_type_id' => $ticketType->id,
+                ]);
         }
     }
 }
