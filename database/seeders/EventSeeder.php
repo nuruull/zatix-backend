@@ -26,6 +26,9 @@ class EventSeeder extends Seeder
         Event::truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
+        Storage::disk('public')->deleteDirectory('event_posters');
+        Storage::disk('public')->makeDirectory('event_posters');
+
         $organizer = EventOrganizer::first();
         if (!$organizer) {
             $this->command->error('Tidak ada data Event Organizer. Harap jalankan EventOrganizerSeeder terlebih dahulu.');
@@ -68,7 +71,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Private Gathering: Alumni Angkatan 2010',
-                'poster' => 'private-event.jpg',
+                'poster' => 'private-event.jpeg',
                 'description' => 'Acara kumpul-kumpul khusus untuk alumni angkatan 2010. Akses hanya melalui link undangan.',
                 'start_date' => Carbon::now()->addMonths(2),
                 'end_date' => Carbon::now()->addMonths(2),
@@ -109,10 +112,16 @@ class EventSeeder extends Seeder
         ];
 
         foreach ($eventsData as $data) {
+            try {
+                $sourcePath = database_path('seeders/images/event_posters/' . $data['poster']);
+                $destinationPath = 'event_posters/' . $data['poster'];
+
+                Storage::disk('public')->put($destinationPath, file_get_contents($sourcePath));
+
                 // Buat event utama
                 $event = $organizer->events()->create([
                     'name' => $data['name'],
-                    'poster' => 'event_posters/' . $data['poster'],
+                    'poster' => $destinationPath,
                     'description' => $data['description'],
                     'start_date' => $data['start_date']->toDateString(),
                     'start_time' => '19:00',
@@ -141,6 +150,9 @@ class EventSeeder extends Seeder
                     'end_date' => $data['start_date'],
                     'ticket_type_id' => $ticketType->id,
                 ]);
+            } catch (\Exception $e) {
+                $this->command->error("Gagal menyalin gambar atau membuat event: " . $data['name'] . ". Error: " . $e->getMessage());
+            }
         }
     }
 }
