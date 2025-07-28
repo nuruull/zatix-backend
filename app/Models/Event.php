@@ -31,6 +31,8 @@ class Event extends Model
     ];
 
     protected $casts = [
+        'start_time' => 'datetime:H:i',
+        'end_time' => 'datetime:H:i',
         'start_date' => 'date', // <-- TAMBAHKAN INI
         'end_date' => 'date',   // <-- TAMBAHKAN INI
         'is_published' => 'boolean',

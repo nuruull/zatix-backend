@@ -11,6 +11,7 @@ use App\Enum\Type\TncTypeEnum;
 use App\Models\EventOrganizer;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class EventSeeder extends Seeder
 {
@@ -45,19 +46,19 @@ class EventSeeder extends Seeder
         }
 
         $eventsData = [
-            // KONDISI 1: Masih DRAFT
             [
-                'name' => 'Workshop Fotografi: Teknik Dasar (DRAFT)',
+                'name' => 'Workshop Fotografi: Teknik Dasar',
+                'poster' => 'event_posters/Workshop-Fotografi.jpg',
                 'description' => 'Belajar teknik dasar fotografi dari para profesional. Event ini masih dalam bentuk draf.',
                 'start_date' => Carbon::now()->addWeeks(2),
                 'end_date' => Carbon::now()->addWeeks(2),
-                'status' => 'draft',
-                'is_published' => false,
-                'is_public' => false, // Draf selalu tidak publik
+                'status' => 'active',
+                'is_published' => true,
+                'is_public' => true,
             ],
-            // KONDISI 2: Sudah PUBLISH dan bersifat PUBLIK
             [
                 'name' => 'Konser Amal Kemerdekaan 2025',
+                'poster' => 'event_posters/konser-amal.jpg',
                 'description' => 'Konser musik untuk menggalang dana bagi para veteran. Terbuka untuk umum.',
                 'start_date' => Carbon::now()->addMonth(1),
                 'end_date' => Carbon::now()->addMonth(1),
@@ -65,15 +66,45 @@ class EventSeeder extends Seeder
                 'is_published' => true,
                 'is_public' => true, // <-- Event ini publik
             ],
-            // KONDISI 3: Sudah PUBLISH tapi bersifat PRIVATE
             [
                 'name' => 'Private Gathering: Alumni Angkatan 2010',
+                'poster' => 'event_posters/private-event.jpg',
                 'description' => 'Acara kumpul-kumpul khusus untuk alumni angkatan 2010. Akses hanya melalui link undangan.',
                 'start_date' => Carbon::now()->addMonths(2),
                 'end_date' => Carbon::now()->addMonths(2),
                 'status' => 'active',
                 'is_published' => true,
-                'is_public' => false, // <-- Event ini privat
+                'is_public' => false,
+            ],
+            [
+                'name' => 'Konser BTS: Comeback From Military',
+                'poster' => 'event_posters/poster-konserjpeg.jpeg',
+                'description' => 'BTS mengadakan konser untuk army setelah kepulangan 7 member dari wamil',
+                'start_date' => Carbon::now()->addMonths(2),
+                'end_date' => Carbon::now()->addMonths(2),
+                'status' => 'active',
+                'is_published' => true,
+                'is_public' => true,
+            ],
+            [
+                'name' => 'Workshop Flower Bouqet',
+                'poster' => 'event_posters/workshop-bunga.jpg',
+                'description' => 'Pada workshop ini mengajak wanita-wanita indonesia mempelajari cara membuat buket bunga',
+                'start_date' => Carbon::now()->addMonths(2),
+                'end_date' => Carbon::now()->addMonths(2),
+                'status' => 'draft',
+                'is_published' => false,
+                'is_public' => false,
+            ],
+            [
+                'name' => 'Konser TXT: Eternally',
+                'poster' => 'event_posters/konser-txt.jpg',
+                'description' => 'Konser TXT diadakan di Indonesia',
+                'start_date' => Carbon::now()->addMonths(2),
+                'end_date' => Carbon::now()->addMonths(2),
+                'status' => 'archive',
+                'is_published' => false,
+                'is_public' => false,
             ],
         ];
 
@@ -81,11 +112,12 @@ class EventSeeder extends Seeder
             // Buat event utama
             $event = $organizer->events()->create([
                 'name' => $data['name'],
+                'poster' => Storage::url($data['poster']),
                 'description' => $data['description'],
                 'start_date' => $data['start_date']->toDateString(),
-                'start_time' => '19:00:00',
+                'start_time' => '19:00',
                 'end_date' => $data['end_date']->toDateString(),
-                'end_time' => '23:00:00',
+                'end_time' => '23:00',
                 'location' => 'Gedung Serbaguna Kota Fiktif',
                 'contact_phone' => $organizer->phone_no_eo,
                 'tnc_id' => $tnc->id,
