@@ -24,7 +24,6 @@ class OfflineSalesController extends BaseController
 {
     public function store(Request $request)
     {
-        dd($request->all());
         $validated = $request->validate([
             'event_id' => ['required', Rule::exists('events', 'id')->where('is_published', true)],
             'items' => 'required|array|min:1',
