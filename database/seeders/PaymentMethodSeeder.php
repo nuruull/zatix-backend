@@ -27,6 +27,7 @@ class PaymentMethodSeeder extends Seeder
         $vaCategory = PaymentMethodCategory::create(['name' => 'Virtual Account', 'is_active' => true]);
         $ewalletCategory = PaymentMethodCategory::create(['name' => 'E-Wallet', 'is_active' => true]);
         $qrisCategory = PaymentMethodCategory::create(['name' => 'QRIS', 'is_active' => true]);
+        $cashCategory = PaymentMethodCategory::create(['name' => 'Tunai', 'is_active' => true]);
 
         // 2. Buat Data Bank / Penyedia Layanan
         $bca = Bank::create(['name' => 'BCA', 'code' => 'bca', 'type' => 'bank_transfer', 'main_image' => 'images/banks/bca.png']);
@@ -34,6 +35,7 @@ class PaymentMethodSeeder extends Seeder
         $bni = Bank::create(['name' => 'BNI', 'code' => 'bni', 'type' => 'bank_transfer', 'main_image' => 'images/banks/bni.png']);
         $gopay = Bank::create(['name' => 'GoPay', 'code' => 'gopay', 'type' => 'gopay', 'main_image' => 'images/banks/gopay.png']);
         $qris = Bank::create(['name' => 'QRIS', 'code' => 'qris', 'type' => 'qris', 'main_image' => 'images/banks/qris.png']);
+        $cash = Bank::create(['name' => 'Cash', 'code' => 'cash', 'type' => 'cash', 'main_image' => 'images/banks/cash.png']);
 
         // 3. Hubungkan Bank ke Kategori untuk membuat Metode Pembayaran yang aktif
         PaymentMethod::create([
@@ -70,6 +72,13 @@ class PaymentMethodSeeder extends Seeder
             'is_active' => true,
             'is_maintenance' => false,
             'priority' => 5,
+        ]);
+        PaymentMethod::create([
+            'payment_method_category_id' => $cashCategory->id,
+            'bank_id' => $cash->id,
+            'is_active' => true,
+            'is_maintenance' => false,
+            'priority' => 6, // Prioritas tertinggi
         ]);
 
     }
