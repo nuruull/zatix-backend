@@ -33,6 +33,12 @@ class UserSeeder extends Seeder
                 'email_verified_at' => '2025-01-01 00:00:00',
             ),
             array(
+                'name' => 'Event PIC',
+                'email' => 'pic@zatix.com',
+                'password' => 'pic123',
+                'email_verified_at' => '2025-01-01 00:00:00',
+            ),
+            array(
                 'name' => 'Crew',
                 'email' => 'crew@zatix.com',
                 'password' => 'crew123',

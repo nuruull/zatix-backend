@@ -24,6 +24,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'finance',
             'cashier',
             'customer',
+            'event-pic'
 
         ];
 
@@ -188,6 +189,10 @@ class RolesAndPermissionsSeeder extends Seeder
         $user = User::find(8);
         if ($user) {
             $user->assignRole('eo-owner');
+        }
+        $user = User::find(9);
+        if ($user) {
+            $user->assignRole('event-pic');
         }
     }
 }

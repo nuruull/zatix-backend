@@ -141,15 +141,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('markAsRead');
     });
 
-    Route::prefix('staff')
-        ->name('staff.')
-        ->middleware(['role:eo-owner'])
+    Route::prefix('events/{event}')
+        ->name('events.')
+        ->middleware(['auth:sanctum'])
         ->group(function () {
-            Route::get('/', [StaffController::class, 'index'])->name('index');
-            Route::post('/create', [StaffController::class, 'store'])->name('store');
-            Route::put('/{staff}', [StaffController::class, 'update'])->name('update');
-            Route::delete('/{staff}', [StaffController::class, 'destroy'])->name('destroy');
+            Route::prefix('staffs')
+                ->name('staffs.')
+                ->group(function () {
+                    Route::get('/', [StaffController::class, 'index'])->middleware(['role:eo-owner|event-pic'])->name('index');
+                    Route::put('/{staff}', [StaffController::class, 'update'])->middleware(['role:eo-owner|event-pic'])->name('update');
+                    Route::delete('/{staff}', [StaffController::class, 'destroy'])->middleware(['role:eo-owner'])->name('destroy');
+                });
         });
+    Route::post('/staffs/create', [StaffController::class, 'store'])->middleware(['auth:sanctum', 'role:eo-owner|event-pic'])->name('staffs.store');
 
     Route::prefix('tnc-events')
         ->name('tnc-event.')

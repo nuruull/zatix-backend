@@ -55,13 +55,17 @@ class TicketValidationController extends BaseController
                     ->where('ticket_code', $validated['ticket_code'])
                     ->firstOrFail();
 
-                $crewEOs = DB::table('event_organizer_users')->where('user_id', $crew->id)->pluck('eo_id');
-                $ticketEventEO = $eTicket->ticket->event->eo_id;
+                $ticketEventId = $eTicket->ticket->event->id;
 
-                if (!$crewEOs->contains($ticketEventEO)) {
+                $isCrewAssignedToEvent = DB::table('event_organizer_users')
+                    ->where('user_id', $crew->id)
+                    ->where('event_id', $ticketEventId)
+                    ->exists();
+
+                if (!$isCrewAssignedToEvent) {
                     return $this->sendError(
-                        'Unauthorized. You are not a member of the Event Organizer of this event.',
-                        ['status' => 'UNAUTHORIZED_CREW'],
+                        'Unauthorized. You are not assigned as crew for this specific event.',
+                        ['status' => 'UNAUTHORIZED_CREW_EVENT'],
                         403 // Forbidden
                     );
                 }
