@@ -2,12 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Enum\Status\EventStatusEnum;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\ETicket;
-use App\Models\EventOrganizer;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use App\Enum\Status\OrderStatusEnum;
@@ -20,110 +18,91 @@ class ETicketSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->command->info('Memulai E-Ticket Seeder...');
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        ETicket::truncate();
+        DB::table('order_items')->truncate();
+        Order::truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
         DB::transaction(function () {
-            // PENGGUNA YANG DIKETAHUI
-            // ========================
-            // 1. Buat satu customer yang jelas untuk digunakan di semua order
-            $customerUser = User::factory()->create([
-                'name' => 'Customer A',
-                'email' => 'customer.a@zatix.id',
-                'password' => bcrypt('password123'),
-            ])->assignRole('customer');
+            $this->command->info('Mencari data User dan Event yang relevan...');
+            $customer1 = User::where('email', 'customer1@zatix.com')->firstOrFail();
+            $customer2 = User::where('email', 'customer2@zatix.com')->firstOrFail();
+            $crewChecker = User::where('email', 'crew@zatix.com')->firstOrFail();
+            $mainEvent = Event::where('name', 'Workshop Fotografi: Teknik Dasar')->where('is_published', true)->firstOrFail();
+            $unpublishedEvent = Event::where('name', 'Workshop Flower Bouqet')->where('is_published', false)->firstOrFail();
+            $anotherEvent = Event::where('name', 'Konser BTS: Comeback From Military')->where('is_published', true)->firstOrFail();
 
-            // 2. Buat EO dan Crew yang jelas
-            $eoKerenOwner = User::factory()->create(['name' => 'Owner EO Keren'])->assignRole('eo-owner');
-            $eoKeren = EventOrganizer::factory()->create(['eo_owner_id' => $eoKerenOwner->id, 'name' => 'EO Keren']);
-            $crewEoKeren = User::factory()->create([
-                'name' => 'Crew EO Keren',
-                'email' => 'crew.keren@zatix.id',
-                'password' => bcrypt('password123'),
-            ])->assignRole('crew');
-            $eoKeren->members()->attach($crewEoKeren->id);
-
-            $eoPesaingOwner = User::factory()->create(['name' => 'Owner EO Pesaing'])->assignRole('eo-owner');
-            $eoPesaing = EventOrganizer::factory()->create(['eo_owner_id' => $eoPesaingOwner->id, 'name' => 'EO Pesaing']);
-            $crewEoPesaing = User::factory()->create([
-                'name' => 'Crew EO Pesaing',
-                'email' => 'crew.pesaing@zatix.id',
-                'password' => bcrypt('password123'),
-            ])->assignRole('crew');
-            $eoPesaing->members()->attach($crewEoPesaing->id);
-
-
-            // SKENARIO UNTUK EVENT "EO KEREN"
-            // ===============================
-            $eventKeren = Event::factory()->create(['is_published' => true, 'eo_id' => $eoKeren->id, 'name' => 'Konser Megah EO Keren', 'status' => EventStatusEnum::ACTIVE->value]);
-
-            // Skenario 1: Tiket valid, belum dipakai
+            $this->command->info("Membuat tiket valid untuk '{$mainEvent->name}'...");
             $validOrder = Order::factory()->create([
-                'event_id' => $eventKeren->id,
+                'event_id' => $mainEvent->id,
                 'status' => OrderStatusEnum::PAID->value,
-                'user_id' => $customerUser->id, // Gunakan customer yang sudah kita buat
+                'user_id' => $customer1->id,
             ]);
             ETicket::factory()->create([
                 'order_id' => $validOrder->id,
                 'ticket_id' => $validOrder->orderItems->first()->ticket_id,
                 'user_id' => $validOrder->user_id,
-                'attendee_name' => $customerUser->name,
+                'attendee_name' => $customer1->name,
             ]);
 
-            // Skenario 2: Tiket sudah terpakai
+            $this->command->info("Membuat tiket yang sudah terpakai untuk '{$mainEvent->name}'...");
             $usedOrder = Order::factory()->create([
-                'event_id' => $eventKeren->id,
+                'event_id' => $mainEvent->id,
                 'status' => OrderStatusEnum::PAID->value,
-                'user_id' => $customerUser->id,
+                'user_id' => $customer1->id,
             ]);
             ETicket::factory()->create([
                 'order_id' => $usedOrder->id,
                 'ticket_id' => $usedOrder->orderItems->first()->ticket_id,
                 'user_id' => $usedOrder->user_id,
                 'checked_in_at' => now()->subHour(),
-                'checked_in_by' => $crewEoKeren->id,
-                'attendee_name' => $customerUser->name,
+                'checked_in_by' => $crewChecker->id,
+                'attendee_name' => $customer1->name,
             ]);
 
-            // Skenario 3: Tiket dari order yang dibatalkan
+            $this->command->info("Membuat tiket dari order yang dibatalkan untuk '{$mainEvent->name}'...");
             $cancelledOrder = Order::factory()->create([
-                'event_id' => $eventKeren->id,
+                'event_id' => $mainEvent->id,
                 'status' => OrderStatusEnum::CANCELLED->value,
-                'user_id' => $customerUser->id,
+                'user_id' => $customer2->id,
             ]);
             ETicket::factory()->create([
                 'order_id' => $cancelledOrder->id,
                 'ticket_id' => $cancelledOrder->orderItems->first()->ticket_id,
                 'user_id' => $cancelledOrder->user_id,
-                'attendee_name' => $customerUser->name,
+                'attendee_name' => $customer2->name,
             ]);
 
-            // Skenario 4: Tiket untuk event yang belum di-publish
-            $unpublishedEvent = Event::factory()->create(['is_published' => false, 'eo_id' => $eoKeren->id, 'name' => 'Event Rahasia EO Keren']);
+            $this->command->info("Membuat tiket untuk event draft '{$unpublishedEvent->name}'...");
             $inactiveEventOrder = Order::factory()->create([
                 'event_id' => $unpublishedEvent->id,
                 'status' => OrderStatusEnum::PAID->value,
-                'user_id' => $customerUser->id,
+                'user_id' => $customer2->id,
             ]);
             ETicket::factory()->create([
                 'order_id' => $inactiveEventOrder->id,
                 'ticket_id' => $inactiveEventOrder->orderItems->first()->ticket_id,
                 'user_id' => $inactiveEventOrder->user_id,
-                'attendee_name' => $customerUser->name,
+                'attendee_name' => $customer2->name,
             ]);
 
-            // SKENARIO TAMBAHAN UNTUK OTORISASI CREW
-            // =========================================
-            // Skenario 5: Tiket valid, tapi milik EO Pesaing
-            $eventPesaing = Event::factory()->create(['is_published' => true, 'eo_id' => $eoPesaing->id, 'name' => 'Festival Musik EO Pesaing']);
-            $orderPesaing = Order::factory()->create([
-                'event_id' => $eventPesaing->id,
+            $this->command->info("Membuat tiket valid untuk event lain '{$anotherEvent->name}'...");
+            $orderLain = Order::factory()->create([
+                'event_id' => $anotherEvent->id,
                 'status' => OrderStatusEnum::PAID->value,
-                'user_id' => $customerUser->id,
+                'user_id' => $customer1->id,
             ]);
             ETicket::factory()->create([
-                'order_id' => $orderPesaing->id,
-                'ticket_id' => $orderPesaing->orderItems->first()->ticket_id,
-                'user_id' => $orderPesaing->user_id,
-                'attendee_name' => $customerUser->name,
+                'order_id' => $orderLain->id,
+                'ticket_id' => $orderLain->orderItems->first()->ticket_id,
+                'user_id' => $orderLain->user_id,
+                'attendee_name' => $customer1->name,
             ]);
         });
+
+        $this->command->info('✅ E-Ticket Seeder selesai dijalankan.');
     }
 }

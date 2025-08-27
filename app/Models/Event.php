@@ -99,4 +99,9 @@ class Event extends Model
     {
         return $this->hasMany(FinancialTransaction::class);
     }
+
+    public function staff()
+    {
+        return $this->belongsToMany(User::class, 'event_staff');
+    }
 }

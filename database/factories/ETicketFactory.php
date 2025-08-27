@@ -28,14 +28,21 @@ class ETicketFactory extends Factory
      */
     public function definition(): array
     {
-        $user = User::factory()->create();
-
         return [
             'ticket_code' => Str::upper('ZTX-' . Str::random(12)),
             'order_id' => Order::factory(),
-            'user_id' => $user->id,
-            'ticket_id' => Ticket::factory(),
-            'attendee_name' => $user->name,
+            'user_id' => function (array $attributes) {
+                return Order::find($attributes['order_id'])->user_id;
+            },
+            'attendee_name' => function (array $attributes) {
+                $order = Order::with('user')->find($attributes['order_id']);
+                return $order->user->name;
+            },
+            'ticket_id' => function (array $attributes) {
+                $order = Order::with('orderItems')->find($attributes['order_id']);
+                // Pastikan ada orderItems sebelum mengambil yang pertama
+                return $order->orderItems->first()?->ticket_id ?? Ticket::factory();
+            },
             'checked_in_at' => null,
             'checked_in_by' => null,
         ];

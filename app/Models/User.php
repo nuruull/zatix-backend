@@ -24,6 +24,7 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
+        'created_by',
         'name',
         'email',
         'password',
@@ -118,5 +119,10 @@ class User extends Authenticatable
     public function recordedTransactions()
     {
         return $this->hasMany(FinancialTransaction::class, 'recorded_by_user_id');
+    }
+
+    public function events()
+    {
+        return $this->belongsToMany(Event::class, 'event_staff');
     }
 }
