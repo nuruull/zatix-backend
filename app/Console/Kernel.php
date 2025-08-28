@@ -15,6 +15,7 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')->hourly();
         $schedule->command('demo:revoke-permissions')->daily();
         $schedule->command('events:update-status')->daily();
+        $schedule->command('notify:expiring-tickets')->dailyAt('09:00');
     }
 
     /**

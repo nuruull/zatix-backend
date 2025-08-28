@@ -9,6 +9,7 @@ use App\Http\Controllers\API\TermAndConController;
 use App\Http\Controllers\API\Events\EventController;
 use App\Http\Controllers\API\Events\StaffController;
 use App\Http\Controllers\API\Events\RundownController;
+use App\Http\Controllers\API\Events\BookmarkController;
 use App\Http\Controllers\API\Events\EventTncController;
 use App\Http\Controllers\API\Log\ActivityLogController;
 use App\Http\Controllers\API\Admin\TicketTypeController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\API\Cashier\OfflineSalesController;
 use App\Http\Controllers\API\General\NotificationController;
 use App\Http\Controllers\API\Events\EventOrganizerController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
+use App\Http\Controllers\API\Reports\FinancialReportController;
 use App\Http\Controllers\API\Tickets\TicketValidationController;
 use App\Http\Controllers\API\Transactions\PaymentMethodController;
 use App\Http\Controllers\API\Transactions\MidtransWebhookController;
@@ -154,6 +156,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
                 });
         });
     Route::post('/staffs/create', [StaffController::class, 'store'])->middleware(['auth:sanctum', 'role:eo-owner|event-pic'])->name('staffs.store');
+    Route::middleware(['auth:sanctum', 'role:eo-owner|event-pic'])->group(function () {
+        Route::get('/eo/events-for-selection', [StaffController::class, 'getEventsForSelection'])->name('eo.events.selection');
+    });
 
     Route::prefix('tnc-events')
         ->name('tnc-event.')
@@ -258,6 +263,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::get('/{eTicket:ticket_code}', [MyTicketController::class, 'show'])->name('show');
         });
 
+    Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
+    Route::post('/events/{event}/bookmark-toggle', [BookmarkController::class, 'toggle'])->name('events.bookmark.toggle');
+
     Route::prefix('events')->name('events.')->group(function () {
         Route::get('/{event}/financial-transactions', [FinancialTransactionController::class, 'index'])->name('financial-transactions.index');
         Route::post('/{event}/financial-transactions', [FinancialTransactionController::class, 'store'])->name('financial-transactions.store');
@@ -266,6 +274,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{financial_transaction}', [FinancialTransactionController::class, 'show'])->name('show');
         Route::put('/{financial_transaction}', [FinancialTransactionController::class, 'update'])->name('update');
         Route::delete('/{financial_transaction}', [FinancialTransactionController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/global', [FinancialReportController::class, 'showGlobalReport'])->middleware('role:super-admin')->name('global');
+        Route::get('/eos/{eventOrganizer}', [FinancialReportController::class, 'showEoReport'])->middleware('role:super-admin|eo-owner')->name('eo');
+        Route::get('/events/{event}', [FinancialReportController::class, 'showEventReport'])->middleware('role:super-admin|eo-owner|event-pic|finance')->name('event');
     });
 
     Route::prefix('cashier')

@@ -104,4 +104,9 @@ class Event extends Model
     {
         return $this->belongsToMany(User::class, 'event_staff');
     }
+
+    public function bookmarkedByUsers()
+    {
+        return $this->belongsToMany(User::class, 'bookmarked_events')->withTimestamps();
+    }
 }

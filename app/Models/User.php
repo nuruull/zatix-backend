@@ -125,4 +125,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Event::class, 'event_staff');
     }
+
+    public function bookmarkedEvents()
+    {
+        return $this->belongsToMany(Event::class, 'bookmarked_events')->withTimestamps();
+    }
 }

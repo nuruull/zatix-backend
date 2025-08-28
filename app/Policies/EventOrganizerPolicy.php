@@ -13,7 +13,7 @@ class EventOrganizerPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('super-admin'. 'api');
+        return $user->hasRole('super-admin' . 'api');
     }
 
     /**
@@ -37,6 +37,15 @@ class EventOrganizerPolicy
      */
     public function update(User $user, EventOrganizer $eventOrganizer): bool
     {
+        return $user->id === $eventOrganizer->eo_owner_id;
+    }
+
+    public function viewFinancialReport(User $user, EventOrganizer $eventOrganizer): bool
+    {
+        if ($user->hasRole('super-admin')) {
+            return true;
+        }
+
         return $user->id === $eventOrganizer->eo_owner_id;
     }
 }

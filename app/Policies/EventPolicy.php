@@ -71,4 +71,21 @@ class EventPolicy
         return $user->hasRole('cashier') &&
             $event->eventOrganizer->members()->where('user_id', $user->id)->exists();
     }
+
+    public function viewFinancialReport(User $user, Event $event): bool
+    {
+        if ($user->hasRole('super-admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('eo-owner')) {
+            return $user->eventOrganizer?->id === $event->eo_id;
+        }
+
+        if ($user->hasRole(['event-pic', 'finance'])) {
+            return $user->events()->where('events.id', $event->id)->exists();
+        }
+
+        return false;
+    }
 }

@@ -97,9 +97,9 @@ class StaffController extends BaseController
 
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users',
+                'email' => 'required|string|email|max:255',
                 'role' => ['required', 'string', Rule::in($creatableRoles)],
-                'event_id' => 'required|integer|exists:events,id',
+                'event_id' => 'required|integer',
             ]);
 
             if ($validator->fails()) {
@@ -127,29 +127,42 @@ class StaffController extends BaseController
                 }
             }
 
-            $newStaff = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make(Str::random(40)), // Password sementara
-                'email_verified_at' => now(),
-                'created_by' => $currentUser->id, // Mencatat siapa yang membuat staff ini
-            ]);
+            $staffUser = User::where('email', $validated['email'])->first();
+            $isNewUser = false;
 
-            $newStaff->assignRole($roleToCreate);
-            $eventOrganizer->members()->attach($newStaff->id, ['event_id' => $eventId]);
-            $newStaff->events()->attach($eventId);
+            if ($staffUser) { // Jika user dengan email ini sudah ada
+                if ($staffUser->events()->where('events.id', $event->id)->exists()) {
+                    DB::rollBack();
+                    return $this->sendError('This staff member is already assigned to this event.', [], 409);
+                }
+            } else { // Jika user belum ada, buat akun baru
+                $isNewUser = true;
+                $staffUser = User::create([
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make(Str::random(40)),
+                    'email_verified_at' => now(),
+                    'created_by' => $currentUser->id,
+                ]);
+            }
 
-            // Kirim notifikasi untuk set password
-            $token = Password::broker()->createToken($newStaff);
-            $newStaff->notify(new WelcomeAndSetPasswordNotification($token));
+            $staffUser->assignRole($roleToCreate);
+            $eventOrganizer->members()->attach($staffUser->id, ['event_id' => $eventId]);
+            $staffUser->events()->attach($eventId);
+
+            if ($isNewUser) {
+                $token = Password::broker()->createToken($staffUser);
+                $staffUser->notify(new WelcomeAndSetPasswordNotification($token));
+            }
 
             DB::commit();
 
             $responseData = [
-                'name' => $newStaff->name,
-                'email' => $newStaff->email,
-                'role' => $newStaff->getRoleNames()->first(),
+                'name' => $staffUser->name,
+                'email' => $staffUser->email,
+                'role' => $roleToCreate,
                 'assigned_to_event' => $event->name,
+                'is_new_user' => $isNewUser,
             ];
 
             return $this->sendResponse(
@@ -299,6 +312,30 @@ class StaffController extends BaseController
                 'exception' => $e
             ]);
             return $this->sendError('Failed to unassign staff.', ['error' => 'An unexpected server error occurred.'], 500);
+        }
+    }
+
+    public function getEventsForSelection()
+    {
+        try {
+            $eventOrganizer = Auth::user()->eventOrganizer;
+
+            if (!$eventOrganizer) {
+                return $this->sendError("Event Organizer profile not found.", [], 404);
+            }
+
+            $events = $eventOrganizer->events()
+                ->select('id', 'name')
+                ->where('status', 'active')
+                ->where('end_date', '>=', now()->toDateString())
+                ->orderBy('start_date', 'asc')
+                ->get();
+
+            return $this->sendResponse($events, 'Events for selection retrieved successfully.');
+
+        } catch (Throwable $e) {
+            Log::error('Failed to retrieve events for selection: ' . $e->getMessage());
+            return $this->sendError('Failed to retrieve events.', [], 500);
         }
     }
 }
