@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\API\Events;
 
-use App\Http\Resources\EventResource;
+use Throwable;
 use Carbon\Carbon;
 use App\Models\Event;
 use App\Models\TncStatus;
@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 use App\Enum\Status\EventStatusEnum;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Resources\EventResource;
 use App\Enum\Status\DocumentStatusEnum;
 use Illuminate\Database\QueryException;
 use App\Http\Controllers\BaseController;
@@ -445,4 +446,59 @@ class EventController extends BaseController
             return $this->sendError('An unexpected error occurred while archiving the event.', [], 500);
         }
     }
+
+    public function search(Request $request)
+    {
+        try {
+            $query = Event::query()
+                ->where('is_published', true)
+                ->where('is_public', true);
+
+            if ($request->has('q')) {
+                $searchTerm = $request->input('q');
+                $query->where(function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('name', 'like', "%{$searchTerm}%")
+                        ->orWhere('description', 'like', "%{$searchTerm}%");
+                });
+            }
+
+            if ($request->has('timeframe')) {
+                $timeframe = $request->input('timeframe');
+                if ($timeframe === 'upcoming') {
+                    $query->where('start_date', '>=', now()->toDateString());
+                } elseif ($timeframe === 'past') {
+                    $query->where('end_date', '<', now()->toDateString());
+                }
+            }
+
+            if ($request->has('price')) {
+                $price = $request->input('price');
+                if ($price === 'free') {
+                    $query->whereHas('tickets', function ($ticketQuery) {
+                        $ticketQuery->where('price', '=', 0);
+                    });
+                } elseif ($price === 'paid') {
+                    $query->whereHas('tickets', function ($ticketQuery) {
+                        $ticketQuery->where('price', '>', 0);
+                    });
+                }
+            }
+
+            // 4. Filter Kategori (jika Anda punya relasi 'category')
+            // if ($request->has('category_id')) {
+            //     $query->where('category_id', $request->input('category_id'));
+            // }
+
+            $query->orderBy('start_date', 'asc');
+
+            $events = $query->paginate(12)->withQueryString();
+
+            return $this->sendResponse(EventResource::collection($events), 'Events retrieved successfully.');
+
+        } catch (Throwable $e) {
+            Log::error('Failed to search events: ' . $e->getMessage());
+            return $this->sendError('Failed to retrieve events.', [], 500);
+        }
+    }
+
 }

@@ -67,6 +67,7 @@ Route::get('/get-general-tnc', [TermAndConController::class, 'getGeneralTnc']);
 
 Route::prefix('events')->name('events.')->group(function () {
     Route::get('/', [EventPublicController::class, 'index'])->name('index');
+    Route::get('/search', [EventController::class, 'search'])->name('search');
     Route::get('/{event}', [EventPublicController::class, 'show'])->name('show');
 });
 
