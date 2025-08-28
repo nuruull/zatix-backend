@@ -24,6 +24,7 @@ class Event extends Model
         'end_date',
         'end_time',
         'location',
+        'max_tickets_per_transaction',
         'status',
         'contact_phone',
         'is_published',

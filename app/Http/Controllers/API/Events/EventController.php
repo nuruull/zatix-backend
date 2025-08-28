@@ -78,6 +78,8 @@ class EventController extends BaseController
                 ],
                 'facilities' => 'nullable|array',
                 'facilities.*' => 'exists:facilities,id',
+                'purchase_limit_type' => 'required|string|in:default,unlimited,custom',
+                'custom_limit' => 'nullable|required_if:purchase_limit_type,custom|integer|min:1',
                 'tickets' => 'nullable|array',
                 'tickets.*.name' => 'required|string|max:255',
                 'tickets.*.price' => 'required|numeric|min:0',
@@ -135,6 +137,13 @@ class EventController extends BaseController
                     $posterPath = $this->storeFile($request->file('poster'), 'event_posters');
                 }
 
+                $maxTickets = 5;
+                if ($validatedData['purchase_limit_type'] === 'unlimited') {
+                    $maxTickets = null;
+                } elseif ($validatedData['purchase_limit_type'] === 'custom') {
+                    $maxTickets = $validatedData['custom_limit'];
+                }
+
                 $createdEvent = Event::create([
                     'eo_id' => $organizer->id,
                     'name' => $validatedData['name'],
@@ -145,6 +154,7 @@ class EventController extends BaseController
                     'end_date' => $validatedData['end_date'],
                     'end_time' => $validatedData['end_time'],
                     'location' => $validatedData['location'],
+                    'max_tickets_per_transaction' => $maxTickets,
                     'status' => 'draft',
                     'contact_phone' => $validatedData['contact_phone'],
                     'tnc_id' => $eventTnc->id,

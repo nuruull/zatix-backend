@@ -23,6 +23,7 @@ return new class extends Migration
             $table->date('end_date');
             $table->time('end_time');
             $table->string('location');
+            $table->unsignedInteger('max_tickets_per_transaction')->default(5)->nullable();
             $table->string('status')->default('draft');
             // $table->string('approval_status')->default('pending');
             $table->boolean('is_published')->default(false);
