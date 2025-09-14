@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             TermAndConSeeder::class,
             EventOrganizerSeeder::class,
             DocumentSeeder::class,
+            CategorySeeder::class,
             EventSeeder::class,
             CarouselSeeder::class,
             StaffSeeder::class,

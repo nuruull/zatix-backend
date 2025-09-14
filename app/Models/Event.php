@@ -15,6 +15,7 @@ class Event extends Model
 
     protected $fillable = [
         'eo_id',
+        'category_id',
         'tnc_id',
         'name',
         'poster',
@@ -109,5 +110,10 @@ class Event extends Model
     public function bookmarkedByUsers()
     {
         return $this->belongsToMany(User::class, 'bookmarked_events')->withTimestamps();
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
     }
 }
