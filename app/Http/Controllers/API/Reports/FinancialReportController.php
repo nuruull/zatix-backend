@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\Order;
 use App\Models\EventOrganizer;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Enum\Status\OrderStatusEnum;
 use App\Models\FinancialTransaction;
 use Illuminate\Support\Facades\Auth;

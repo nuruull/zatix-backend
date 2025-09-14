@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API\Transactions;
 
 use Auth;
 
+use Throwable;
 use Midtrans\Snap;
 use App\Models\User;
 use App\Models\Event;
@@ -13,221 +14,78 @@ use App\Models\Ticket;
 use App\Models\Voucher;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use App\Jobs\ProcessNewOrder;
 use App\Models\PaymentMethod;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\WaitingRoomService;
+use Illuminate\Support\Facades\Cache;
 use App\Enum\Type\TransactionTypeEnum;
 use App\Http\Controllers\BaseController;
 use Illuminate\Validation\ValidationException;
 
 class OrderController extends BaseController
 {
+    protected WaitingRoomService $waitingRoom;
+
+    // public function __construct(WaitingRoomService $waitingRoom)
+    // {
+    //     $this->waitingRoom = $waitingRoom;
+    // }
+
     public function store(Request $request)
     {
-        // 1. Validasi Input Awal
-        $validated = $request->validate([
-            'items' => 'required|array|min:1',
-            'items.*.ticket_id' => 'required|exists:tickets,id',
-            'items.*.quantity' => 'required|integer|min:1|max:10',
-            'payment_method_id' => 'required|exists:payment_methods,id',
-            'voucher_code' => 'nullable|string|exists:vouchers,code',
-        ]);
-
-        $user = Auth::user();
-        $paymentMethod = PaymentMethod::with('bank')->findOrFail($validated['payment_method_id']);
-
         try {
-            $order = DB::transaction(function () use ($validated, $user) {
+            // 1. Validasi Input Awal
+            $validated = $request->validate([
+                'items' => 'required|array|min:1',
+                'items.*.ticket_id' => 'required|exists:tickets,id',
+                'items.*.quantity' => 'required|integer|min:1|max:10',
+                'payment_method_id' => 'required|exists:payment_methods,id',
+                'voucher_code' => 'nullable|string|exists:vouchers,code',
+            ]);
 
-                $orderItemsPayload = [];
-                $grossAmount = 0;
-                $eventId = null;
+            $user = Auth::user();
 
-                foreach ($validated['items'] as $item) {
-                    $ticket = Ticket::lockForUpdate()->find($item['ticket_id']);
+            $firstTicket = Ticket::find($validated['items'][0]['ticket_id']);
+            if (!$firstTicket) {
+                return $this->sendError('Invalid ticket provided.', [], 404);
+            }
+            $event = $firstTicket->event;
 
-                    if ($ticket->stock < $item['quantity']) {
-                        throw ValidationException::withMessages([
-                            'items' => "Stok tiket '{$ticket->name}' tidak mencukupi. Sisa: {$ticket->stock}."
-                        ]);
-                    }
+            $response = Cache::lock('process-order-event-' . $event->id, 10)->get(function () use ($event, $user, $validated) {
+                $waitingRoom = app(WaitingRoomService::class);
 
-                    $subtotal = $ticket->price * $item['quantity'];
-                    $grossAmount += $subtotal;
-
-                    $orderItemsPayload[] = [
-                        'ticket_id' => $ticket->id,
-                        'quantity' => $item['quantity'],
-                        'price' => $ticket->price,
-                        'subtotal' => $subtotal,
-                    ];
-                    if (is_null($eventId))
-                        $eventId = $ticket->event_id;
+                // A. Cek jika user sudah diizinkan masuk sebelumnya
+                if ($waitingRoom->isAllowedToProceed($event, $user)) {
+                    ProcessNewOrder::dispatch($user, $validated, $event);
+                    return $this->sendResponse([], 'Your order is being processed. You will be notified shortly.', 202);
                 }
 
-                $event = Event::find($eventId);
-                if (!$event || !$event->is_published) {
-                    throw ValidationException::withMessages([
-                        'event' => 'This event is not available for ticket purchase at the moment.'
-                    ]);
+                // B. Cek jika masih ada kapasitas di ruang checkout
+                if ($waitingRoom->hasCapacity($event)) {
+                    $waitingRoom->allowUserToProceed($event, $user);
+                    ProcessNewOrder::dispatch($user, $validated, $event);
+                    return $this->sendResponse([], 'You have entered the checkout. Your order is being processed.', 202);
                 }
 
-                $discountAmount = 0;
-                $voucherToUse = null; // Variabel untuk menyimpan objek voucher yang valid
+                // C. Jika penuh, masukkan user ke dalam antrian
+                $queueData = $waitingRoom->addUserToQueue($event, $user);
 
-                if (!empty($validated['voucher_code'])) {
-                    $voucher = Voucher::where('code', $validated['voucher_code'])
-                        ->lockForUpdate() // Kunci baris untuk mencegah race condition
-                        ->first();
-
-                    // Lakukan validasi lengkap terhadap voucher
-                    if (!$voucher || !$voucher->is_active || $voucher->valid_until->isPast() || $voucher->usage_limit <= 0) {
-                        throw ValidationException::withMessages([
-                            'voucher_code' => 'The provided voucher code is invalid, expired, or has reached its usage limit.'
-                        ]);
-                    }
-
-                    // Jika voucher valid, hitung diskon
-                    if ($voucher->discount_type === 'percentage') {
-                        $discountAmount = ($grossAmount * $voucher->discount_value) / 100;
-                        if ($voucher->max_amount && $discountAmount > $voucher->max_amount) {
-                            $discountAmount = $voucher->max_amount;
-                        }
-                    } else {
-                        $discountAmount = $voucher->discount_value;
-                    }
-                    $voucherToUse = $voucher; // Simpan objek voucher untuk digunakan nanti
-                }
-
-                $netAmount = $grossAmount - $discountAmount;
-                if ($netAmount < 0)
-                    $netAmount = 0;
-
-                $order = Order::create([
-                    'id' => Str::uuid(),
-                    'user_id' => $user->id,
-                    'event_id' => $eventId,
-                    'gross_amount' => $grossAmount,
-                    'discount_amount' => $discountAmount,
-                    'net_amount' => $netAmount,
-                    'status' => 'unpaid',
-                ]);
-
-                $order->orderItems()->createMany($orderItemsPayload);
-
-                if ($voucherToUse) {
-                    $order->vouchers()->attach($voucherToUse->id, ['discount_amount_applied' => $discountAmount]);
-                    $voucherToUse->decrement('usage_limit');
-                }
-
-                foreach ($order->orderItems as $item) {
-                    $item->ticket()->decrement('stock', $item->quantity);
-                }
-
-                return $order;
+                return $this->sendResponse(
+                    $queueData, // Berisi 'position' dan 'estimated_wait_time_minutes'
+                    'The event is currently busy. You have been placed in a waiting room.',
+                    429 // HTTP Status: Too Many Requests
+                );
             });
 
-            // --- PERBAIKAN LOGIKA UTAMA ADA DI SINI ---
-            $chargePayload = $this->prepareMidtransPayload($order, $paymentMethod, $user);
-            $midtransResponse = CoreApi::charge($chargePayload);
-
-            //for jmeter testing -> comment $midtransResponse before
-            // $midtransResponse = json_decode(
-            //     \Illuminate\Support\Facades\Http::post(
-            //         url('/api/mock/charge'), // Panggil mock endpoint lokal
-            //         $chargePayload
-            //     )->body()
-            // );
-
-            $this->createTransactionRecords($order, $midtransResponse, $paymentMethod->id);
-
-            $response_data = (array) $midtransResponse;
-            $response_data['order_id'] = $order->id; // Tambahkan order_id di sini
-
-            return $this->sendResponse(
-                $response_data,
-                'Payment details retrieved successfully. Please complete the payment.'
-            );
-
+            return $response;
         } catch (ValidationException $e) {
             return $this->sendError('Validation Failed', $e->errors(), 422);
-        } catch (\Exception $e) {
-            $midtransError = json_decode($e->getMessage());
-            if (json_last_error() === JSON_ERROR_NONE) {
-                Log::error('Midtrans API Error:', (array) $midtransError);
-                return $this->sendError(
-                    'Midtrans API returned an error.',
-                    ['midtrans_errors' => $midtransError->error_messages ?? [$e->getMessage()]],
-                    400
-                );
-            }
-
-            Log::error('Order creation failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return $this->sendError('An unexpected error occurred during order creation.', [], 500);
+        } catch (Throwable $e) {
+            Log::error('Order initiation failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return $this->sendError('An unexpected error occurred before processing your order.', [], 500);
         }
-    }
-
-    private function prepareMidtransPayload(Order $order, PaymentMethod $paymentMethod, User $user): array
-    {
-        // --- PERBAIKAN: Buat item_details dari order ---
-        $itemDetails = $order->orderItems->map(fn($item) => [
-            'id' => $item->ticket_id,
-            'price' => $item->price,
-            'quantity' => $item->quantity,
-            'name' => Str::limit($item->ticket->name, 50),
-        ])->toArray();
-
-        // --- PERBAIKAN: Jika ada diskon, tambahkan sebagai item dengan harga negatif ---
-        if ($order->discount_amount > 0) {
-            $itemDetails[] = [
-                'id' => 'DISCOUNT',
-                'price' => -$order->discount_amount,
-                'quantity' => 1,
-                'name' => 'Discount/Voucher',
-            ];
-        }
-
-        $payload = [
-            'payment_type' => $paymentMethod->bank->type,
-            'transaction_details' => [
-                'order_id' => $order->id,
-                // --- PERBAIKAN: gross_amount sekarang adalah net_amount, karena diskon sudah masuk item_details ---
-                'gross_amount' => $order->net_amount,
-            ],
-            'customer_details' => [
-                'first_name' => $user->name,
-                'email' => $user->email,
-            ],
-            'item_details' => $itemDetails, // Gunakan item_details yang sudah disiapkan
-        ];
-
-        if ($payload['payment_type'] === 'echannel') {
-            $payload['echannel'] = ['bill_info1' => 'Payment For:', 'bill_info2' => 'Ticket ' . Str::limit($order->event->name, 20)];
-        } else if ($payload['payment_type'] === 'bank_transfer') {
-            $payload['bank_transfer'] = ['bank' => $paymentMethod->bank->code];
-        }
-
-        return $payload;
-    }
-
-    private function createTransactionRecords(Order $order, $midtransResponse, $paymentMethodId): void
-    {
-        $transaction = $order->transactions()->create([
-            'user_id' => $order->user_id,
-            'grand_amount' => $order->net_amount,
-            'status' => 'pending',
-            'type' => TransactionTypeEnum::TRANSFER->value,
-        ]);
-
-        $transaction->paymentDetail()->create([
-            'payment_method_id' => $paymentMethodId,
-            'reference_id' => $midtransResponse->transaction_id,
-            'va_number' => $midtransResponse->va_numbers[0]->va_number ?? $midtransResponse->permata_va_number ?? null,
-            'bill_key' => $midtransResponse->bill_key ?? null,
-            'biller_code' => $midtransResponse->biller_code ?? null,
-            'qris_url' => $midtransResponse->actions[0]->url ?? null,
-            'expiry_at' => $midtransResponse->expiry_time,
-        ]);
     }
 
     public function show(Order $order)
