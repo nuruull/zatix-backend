@@ -10,6 +10,7 @@ use App\Http\Controllers\API\Events\EventController;
 use App\Http\Controllers\API\Events\StaffController;
 use App\Http\Controllers\API\Events\RundownController;
 use App\Http\Controllers\API\Events\BookmarkController;
+use App\Http\Controllers\API\Events\CategoryController;
 use App\Http\Controllers\API\Events\EventTncController;
 use App\Http\Controllers\API\Log\ActivityLogController;
 use App\Http\Controllers\API\Admin\TicketTypeController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\API\Facilities\FacilityController;
 use App\Http\Controllers\API\Cashier\OfflineSalesController;
 use App\Http\Controllers\API\General\NotificationController;
 use App\Http\Controllers\API\Events\EventOrganizerController;
+use App\Http\Controllers\API\Events\RecommendationController;
 use App\Http\Controllers\API\Auth\PasswordResetLinkController;
 use App\Http\Controllers\API\Reports\FinancialReportController;
 use App\Http\Controllers\API\Tickets\TicketValidationController;
@@ -68,8 +70,11 @@ Route::get('/get-general-tnc', [TermAndConController::class, 'getGeneralTnc']);
 Route::prefix('events')->name('events.')->group(function () {
     Route::get('/', [EventPublicController::class, 'index'])->name('index');
     Route::get('/search', [EventController::class, 'search'])->name('search');
+    Route::get('/popular', [EventPublicController::class, 'getPopularEvents'])->name('popular');
     Route::get('/{event}', [EventPublicController::class, 'show'])->name('show');
 });
+
+Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
 
 Route::prefix('carousels')
     ->name('carousels.')
@@ -100,6 +105,8 @@ Route::post('/mock/charge', function () {
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::get('/recommendations/events', [RecommendationController::class, 'getEventRecommendations'])->name('recommendations.events');
 
     Route::prefix('event-organizers')
         ->name('event-organizers.')

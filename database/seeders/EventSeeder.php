@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Carbon\Carbon;
 use App\Models\Event;
+use App\Models\Category;
 use App\Models\Facility;
 use App\Models\TermAndCon;
 use App\Models\TicketType;
@@ -48,9 +49,16 @@ class EventSeeder extends Seeder
             return;
         }
 
+        $categories = Category::pluck('id', 'slug');
+        if ($categories->isEmpty()) {
+            $this->command->error('Tidak ada data Kategori. Harap jalankan CategorySeeder terlebih dahulu.');
+            return;
+        }
+
         $eventsData = [
             [
                 'name' => 'Workshop Fotografi: Teknik Dasar',
+                'category_slug' => 'workshop',
                 'poster' => 'Workshop-Fotografi.jpg',
                 'description' => 'Belajar teknik dasar fotografi dari para profesional. Event ini masih dalam bentuk draf.',
                 'start_date' => Carbon::now()->addWeeks(2),
@@ -61,6 +69,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Konser Amal Kemerdekaan 2025',
+                'category_slug' => 'musik',
                 'poster' => 'konser-amal.jpg',
                 'description' => 'Konser musik untuk menggalang dana bagi para veteran. Terbuka untuk umum.',
                 'start_date' => Carbon::now()->addMonth(1),
@@ -71,6 +80,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Private Gathering: Alumni Angkatan 2010',
+                'category_slug' => 'seminar',
                 'poster' => 'private-event.jpeg',
                 'description' => 'Acara kumpul-kumpul khusus untuk alumni angkatan 2010. Akses hanya melalui link undangan.',
                 'start_date' => Carbon::now()->addMonths(2),
@@ -81,6 +91,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Konser BTS: Comeback From Military',
+                'category_slug' => 'musik',
                 'poster' => 'poster-konserjpeg.jpeg',
                 'description' => 'BTS mengadakan konser untuk army setelah kepulangan 7 member dari wamil',
                 'start_date' => Carbon::now()->addMonths(2),
@@ -91,6 +102,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Workshop Flower Bouqet',
+                'category_slug' => 'workshop',
                 'poster' => 'workshop-bunga.jpg',
                 'description' => 'Pada workshop ini mengajak wanita-wanita indonesia mempelajari cara membuat buket bunga',
                 'start_date' => Carbon::now()->addMonths(2),
@@ -101,6 +113,7 @@ class EventSeeder extends Seeder
             ],
             [
                 'name' => 'Konser TXT: Eternally',
+                'category_slug' => 'musik',
                 'poster' => 'konser-txt.jpg',
                 'description' => 'Konser TXT diadakan di Indonesia',
                 'start_date' => Carbon::now()->addMonths(2),
@@ -120,6 +133,7 @@ class EventSeeder extends Seeder
 
                 // Buat event utama
                 $event = $organizer->events()->create([
+                    'category_id' => $categories[$data['category_slug']] ?? null,
                     'name' => $data['name'],
                     'poster' => $destinationPath,
                     'description' => $data['description'],

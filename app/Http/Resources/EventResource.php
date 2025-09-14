@@ -19,6 +19,7 @@ class EventResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'category' => $this->category->name,
             'description' => $this->description,
 
             // PERBAIKAN: Tambahkan pengecekan NULL sebelum memanggil format()

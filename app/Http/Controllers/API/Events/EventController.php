@@ -39,7 +39,7 @@ class EventController extends BaseController
         }
 
         $events = $organizer->events()
-            ->with(['facilities', 'tickets'])
+            ->with(['facilities', 'tickets', 'category'])
             ->latest()
             ->paginate($request->input('per_page', 15));
 
@@ -52,7 +52,7 @@ class EventController extends BaseController
             return $this->sendError('Event not found.', [], 404);
         }
 
-        $event->load(['facilities', 'tickets', 'eventOrganizer']);
+        $event->load(['facilities', 'tickets', 'eventOrganizer', 'category']);
         return $this->sendResponse($event, 'Event retrieved successfully.');
     }
 
@@ -62,6 +62,7 @@ class EventController extends BaseController
             // DB::beginTransaction();
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
+                'category_id' => 'required|integer|exists:categories,id',
                 'description' => 'nullable|string',
                 'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
                 'start_date' => 'required|date',
@@ -146,6 +147,7 @@ class EventController extends BaseController
 
                 $createdEvent = Event::create([
                     'eo_id' => $organizer->id,
+                    'category_id' => $validatedData['category_id'],
                     'name' => $validatedData['name'],
                     'poster' => $posterPath,
                     'description' => $validatedData['description'],
@@ -177,7 +179,7 @@ class EventController extends BaseController
                     ->whereNull('event_id')
                     ->update(['event_id' => $createdEvent->id]);
 
-                return $createdEvent->load(['facilities', 'tickets']);
+                return $createdEvent->load(['facilities', 'tickets', 'category']);
             });
 
             return $this->sendResponse(
@@ -212,6 +214,7 @@ class EventController extends BaseController
         }
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
+            'category_id' => 'sometimes|required|integer|exists:categories,id',
             'description' => 'nullable|string',
             'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
             'start_date' => 'sometimes|required|date',
@@ -293,7 +296,7 @@ class EventController extends BaseController
                     $event->tickets()->whereNotIn('id', $ticketIdsToKeep)->delete();
                 }
 
-                return $event->fresh(['facilities', 'tickets']);
+                return $event->fresh(['facilities', 'tickets', 'category']);
             });
 
             return $this->sendResponse(new EventResource($updatedEvent), 'Event updated successfully');
@@ -494,10 +497,9 @@ class EventController extends BaseController
                 }
             }
 
-            // 4. Filter Kategori (jika Anda punya relasi 'category')
-            // if ($request->has('category_id')) {
-            //     $query->where('category_id', $request->input('category_id'));
-            // }
+            if ($request->has('category_id')) {
+                $query->where('category_id', $request->input('category_id'));
+            }
 
             $query->orderBy('start_date', 'asc');
 
@@ -510,5 +512,4 @@ class EventController extends BaseController
             return $this->sendError('Failed to retrieve events.', [], 500);
         }
     }
-
 }
