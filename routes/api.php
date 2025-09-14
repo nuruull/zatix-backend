@@ -1,7 +1,9 @@
 <?php
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\Auth\AuthController;
 use App\Http\Controllers\API\Admin\UserController;
@@ -20,6 +22,7 @@ use App\Http\Controllers\API\Tickets\MyTicketController;
 use App\Http\Controllers\API\Tickets\TicketQRController;
 use App\Http\Controllers\API\Documents\DocumentController;
 use App\Http\Controllers\API\Events\EventPublicController;
+use App\Http\Controllers\API\Events\QueueStatusController;
 use App\Http\Controllers\API\Transactions\OrderController;
 use App\Http\Controllers\API\Facilities\FacilityController;
 use App\Http\Controllers\API\Cashier\OfflineSalesController;
@@ -107,6 +110,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::get('/recommendations/events', [RecommendationController::class, 'getEventRecommendations'])->name('recommendations.events');
+
+    Route::get('/queue/status/{event}', [QueueStatusController::class, 'checkStatus'])->name('queue.status');
 
     Route::prefix('event-organizers')
         ->name('event-organizers.')
