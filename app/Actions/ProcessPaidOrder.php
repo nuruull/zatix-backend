@@ -5,6 +5,8 @@ namespace App\Actions;
 use App\Models\User;
 use App\Models\Order;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use App\Notifications\ETicketsGenerated;
 use App\Enum\Type\FinancialTransactionTypeEnum;
 
 class ProcessPaidOrder
@@ -43,5 +45,12 @@ class ProcessPaidOrder
             'transaction_date' => now()->format('Y-m-d'),
             'recorded_by_user_id' => $recorderId,
         ]);
+
+        Log::info("Financial income recorded for order [{$order->id}].");
+
+        if (is_null($recorder)) {
+            $order->user->notify(new ETicketsGenerated($order));
+            Log::info("Notification for e-tickets dispatched for order [{$order->id}].");
+        }
     }
 }
