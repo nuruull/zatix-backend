@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://www.zatix.id'],
+    'allowed_origins' => ['https://www.zatix.id', '127.0.0.0', 'localhost'],
     // 'allowed_origins' => [env('ALLOWED_ORIGIN')],
 
     'allowed_origins_patterns' => [],
