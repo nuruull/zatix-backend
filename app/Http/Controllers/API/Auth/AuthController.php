@@ -110,26 +110,24 @@ class AuthController extends BaseController
                     200
                 );
             }
-            return $this->sendResponse(
-                [
-                    'user' => $user,
-                ],
+            return $this->sendError(
                 'This email is already registered and verified. Please login',
+                [],
                 409
             );
         } catch (ValidationException $exception) {
             DB::rollBack();
             return $this->sendError(
                 'Validation Exception',
-                $exception->getMessage(),
-                202
+                $exception->errors(),
+                422
             );
         } catch (Exception $exception) {
             DB::rollBack();
             return $this->sendError(
-                'Failed',
-                $exception->getMessage(),
-                202
+                'An unexpected error occurred.',
+                [],
+                500
             );
         }
     }
@@ -291,7 +289,7 @@ class AuthController extends BaseController
                     'email_verified_at' => $user->email_verified_at,
                     'roles' => $user->getRoleNames(),
                     'created_at' => $user->created_at,
-                    'updated_at'=> $user->updated_at
+                    'updated_at' => $user->updated_at
                 ],
             ];
 
