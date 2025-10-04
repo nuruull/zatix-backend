@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Topic;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -10,9 +11,9 @@ use App\Http\Controllers\API\Admin\UserController;
 use App\Http\Controllers\API\TermAndConController;
 use App\Http\Controllers\API\Events\EventController;
 use App\Http\Controllers\API\Events\StaffController;
+use App\Http\Controllers\API\Events\FormatController;
 use App\Http\Controllers\API\Events\RundownController;
 use App\Http\Controllers\API\Events\BookmarkController;
-use App\Http\Controllers\API\Events\CategoryController;
 use App\Http\Controllers\API\Events\EventTncController;
 use App\Http\Controllers\API\Log\ActivityLogController;
 use App\Http\Controllers\API\Admin\TicketTypeController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\API\Auth\NewPasswordController;
 use App\Http\Controllers\API\General\CarouselController;
 use App\Http\Controllers\API\Tickets\MyTicketController;
 use App\Http\Controllers\API\Tickets\TicketQRController;
+use App\Http\Controllers\API\Events\TopicEventController;
 use App\Http\Controllers\API\Documents\DocumentController;
 use App\Http\Controllers\API\Events\EventPublicController;
 use App\Http\Controllers\API\Events\QueueStatusController;
@@ -33,6 +35,7 @@ use App\Http\Controllers\API\Auth\PasswordResetLinkController;
 use App\Http\Controllers\API\Reports\FinancialReportController;
 use App\Http\Controllers\API\Tickets\TicketValidationController;
 use App\Http\Controllers\API\Transactions\PaymentMethodController;
+use App\Http\Controllers\API\Events\EventOrganizerPublicController;
 use App\Http\Controllers\API\Transactions\MidtransWebhookController;
 use App\Http\Controllers\API\Transactions\FinancialTransactionController;
 
@@ -72,12 +75,17 @@ Route::get('/get-general-tnc', [TermAndConController::class, 'getGeneralTnc']);
 
 Route::prefix('events')->name('events.')->group(function () {
     Route::get('/', [EventPublicController::class, 'index'])->name('index');
-    Route::get('/search', [EventController::class, 'search'])->name('search');
     Route::get('/popular', [EventPublicController::class, 'getPopularEvents'])->name('popular');
+    Route::get('/top-selling', [EventPublicController::class, 'getTopSellingEvents'])->name('top-selling');
+    Route::get('/learning', [EventPublicController::class, 'getLearningEvents'])->name('learning');
     Route::get('/{event}', [EventPublicController::class, 'show'])->name('show');
 });
 
-Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
+Route::get('event/formats', [FormatController::class, 'index'])->name('formats.index');
+
+Route::get('event/topics', [TopicEventController::class, 'index'])->name('topics.index');
+
+Route::get('/organizers/public/top', [EventOrganizerPublicController::class, 'getTopOrganizers']);
 
 Route::prefix('carousels')
     ->name('carousels.')

@@ -15,7 +15,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Enum\Status\EventStatusEnum;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\EventResource;
 use App\Enum\Status\DocumentStatusEnum;
@@ -39,7 +38,7 @@ class EventController extends BaseController
         }
 
         $events = $organizer->events()
-            ->with(['facilities', 'tickets', 'category'])
+            ->with(['facilities', 'tickets', 'format', 'topics'])
             ->latest()
             ->paginate($request->input('per_page', 15));
 
@@ -52,7 +51,7 @@ class EventController extends BaseController
             return $this->sendError('Event not found.', [], 404);
         }
 
-        $event->load(['facilities', 'tickets', 'eventOrganizer', 'category']);
+        $event->load(['facilities', 'tickets', 'eventOrganizer', 'format', 'topics']);
         return $this->sendResponse($event, 'Event retrieved successfully.');
     }
 
@@ -62,7 +61,9 @@ class EventController extends BaseController
             // DB::beginTransaction();
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
-                'category_id' => 'required|integer|exists:categories,id',
+                'format_id' => 'required|integer|exists:formats,id',
+                'topics' => 'nullable|array',
+                'topics.*' => 'integer|exists:topics,id',
                 'description' => 'nullable|string',
                 'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
                 'start_date' => 'required|date',
@@ -147,7 +148,7 @@ class EventController extends BaseController
 
                 $createdEvent = Event::create([
                     'eo_id' => $organizer->id,
-                    'category_id' => $validatedData['category_id'],
+                    'format_id' => $validatedData['format_id'],
                     'name' => $validatedData['name'],
                     'poster' => $posterPath,
                     'description' => $validatedData['description'],
@@ -164,6 +165,10 @@ class EventController extends BaseController
                     'is_public' => false,
                 ]);
 
+                if (!empty($validatedData['topics'])) {
+                    $createdEvent->topics()->sync($validatedData['topics']);
+                }
+
                 if (!empty($validatedData['facilities'])) {
                     $createdEvent->facilities()->sync($validatedData['facilities']);
                 }
@@ -179,7 +184,7 @@ class EventController extends BaseController
                     ->whereNull('event_id')
                     ->update(['event_id' => $createdEvent->id]);
 
-                return $createdEvent->load(['facilities', 'tickets', 'category']);
+                return $createdEvent->load(['facilities', 'tickets', 'format', 'topics']);
             });
 
             return $this->sendResponse(
@@ -204,7 +209,6 @@ class EventController extends BaseController
 
     public function update(Request $request, Event $event)
     {
-        // dd($event->is_published);
         if (Auth::id() !== $event->eventOrganizer->eo_owner_id) {
             return $this->sendError('You are not authorized to update this event.', [], 403);
         }
@@ -214,7 +218,9 @@ class EventController extends BaseController
         }
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
-            'category_id' => 'sometimes|required|integer|exists:categories,id',
+            'format_id' => 'sometimes|required|integer|exists:formats,id',
+            'topics' => 'nullable|array',
+            'topics.*' => 'integer|exists:topics,id',
             'description' => 'nullable|string',
             'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
             'start_date' => 'sometimes|required|date',
@@ -223,7 +229,7 @@ class EventController extends BaseController
             'end_time' => 'sometimes|required|date_format:H:i',
             'location' => 'sometimes|required|string|max:255',
             'contact_phone' => 'sometimes|required|string|max:20',
-            'is_public' => 'sometimes|boolean', // <-- TAMBAHKAN INI
+            'is_public' => 'sometimes|boolean',
             'facilities' => 'nullable|array|exists:facilities,id',
             'tickets' => 'nullable|array',
             'tickets.*.id' => 'sometimes|required|exists:tickets,id',
@@ -271,6 +277,10 @@ class EventController extends BaseController
                     $event->update($eventData);
                 }
 
+                if (array_key_exists('topics', $validated)) {
+                    $event->topics()->sync($validated['topics'] ?? []);
+                }
+
                 if (array_key_exists('facilities', $validated)) {
                     $event->facilities()->sync($validated['facilities'] ?? []);
                 }
@@ -296,7 +306,7 @@ class EventController extends BaseController
                     $event->tickets()->whereNotIn('id', $ticketIdsToKeep)->delete();
                 }
 
-                return $event->fresh(['facilities', 'tickets', 'category']);
+                return $event->fresh(['facilities', 'tickets', 'format', 'topics']);
             });
 
             return $this->sendResponse(new EventResource($updatedEvent), 'Event updated successfully');
@@ -345,6 +355,7 @@ class EventController extends BaseController
                     $this->deleteFile($event->poster);
                 }
                 $event->facilities()->detach();
+                $event->topics()->detach();
                 $event->tickets()->delete();
                 $event->delete();
             });
@@ -457,59 +468,6 @@ class EventController extends BaseController
         } catch (\Exception $e) {
             Log::error('Failed to archive event ID ' . $event->id . ': ' . $e->getMessage());
             return $this->sendError('An unexpected error occurred while archiving the event.', [], 500);
-        }
-    }
-
-    public function search(Request $request)
-    {
-        try {
-            $query = Event::query()
-                ->where('is_published', true)
-                ->where('is_public', true);
-
-            if ($request->has('q')) {
-                $searchTerm = $request->input('q');
-                $query->where(function ($subQuery) use ($searchTerm) {
-                    $subQuery->where('name', 'like', "%{$searchTerm}%")
-                        ->orWhere('description', 'like', "%{$searchTerm}%");
-                });
-            }
-
-            if ($request->has('timeframe')) {
-                $timeframe = $request->input('timeframe');
-                if ($timeframe === 'upcoming') {
-                    $query->where('start_date', '>=', now()->toDateString());
-                } elseif ($timeframe === 'past') {
-                    $query->where('end_date', '<', now()->toDateString());
-                }
-            }
-
-            if ($request->has('price')) {
-                $price = $request->input('price');
-                if ($price === 'free') {
-                    $query->whereHas('tickets', function ($ticketQuery) {
-                        $ticketQuery->where('price', '=', 0);
-                    });
-                } elseif ($price === 'paid') {
-                    $query->whereHas('tickets', function ($ticketQuery) {
-                        $ticketQuery->where('price', '>', 0);
-                    });
-                }
-            }
-
-            if ($request->has('category_id')) {
-                $query->where('category_id', $request->input('category_id'));
-            }
-
-            $query->orderBy('start_date', 'asc');
-
-            $events = $query->paginate(12)->withQueryString();
-
-            return $this->sendResponse(EventResource::collection($events), 'Events retrieved successfully.');
-
-        } catch (Throwable $e) {
-            Log::error('Failed to search events: ' . $e->getMessage());
-            return $this->sendError('Failed to retrieve events.', [], 500);
         }
     }
 }

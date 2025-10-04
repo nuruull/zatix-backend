@@ -10,8 +10,10 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('events', function (Blueprint $table) {
-            $table->foreignId('category_id')->nullable()->constrained('categories')->onDelete('set null')->after('eo_id');
+        Schema::create('event_topic', function (Blueprint $table) {
+            $table->foreignId('event_id')->constrained()->onDelete('cascade');
+            $table->foreignId('topic_id')->constrained()->onDelete('cascade');
+            $table->primary(['event_id', 'topic_id']);
         });
     }
 
@@ -20,9 +22,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::table('events', function (Blueprint $table) {
-            $table->dropForeign(['category_id']);
-            $table->dropColumn('category_id');
-        });
+        Schema::dropIfExists('event_topic');
     }
 };
