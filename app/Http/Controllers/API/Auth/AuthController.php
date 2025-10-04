@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\API\Auth;
 
-use App\Models\TncStatus;
 use Exception;
 use App\Models\User;
+use App\Models\TncStatus;
 use App\Jobs\SendOtpEmail;
 use App\Models\TermAndCon;
 use App\Services\OtpService;
@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Http\Resources\UserResource;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\BaseController;
 use Illuminate\Validation\ValidationException;
@@ -168,7 +169,7 @@ class AuthController extends BaseController
                 [
                     'access_token' => $token,
                     'token_type' => 'Bearer',
-                    'user' => $user->makeHidden('password'),
+                    'user' => new UserResource($user),
                 ],
                 'OTP verified successfully'
             );
