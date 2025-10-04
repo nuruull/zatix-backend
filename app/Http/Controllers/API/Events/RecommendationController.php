@@ -29,17 +29,17 @@ class RecommendationController extends BaseController
 
             if ($interactedEventIds->isNotEmpty()) {
                 $favoriteCategoryIds = Event::whereIn('id', $interactedEventIds)
-                    ->pluck('category_id')
+                    ->pluck('format_id')
                     ->unique()
                     ->filter();
 
                 if ($favoriteCategoryIds->isNotEmpty()) {
                     $recommendations = Event::query()
-                        ->whereIn('category_id', $favoriteCategoryIds)
+                        ->whereIn('format_id', $favoriteCategoryIds)
                         ->whereNotIn('id', $interactedEventIds)
                         ->where('is_published', true)
                         ->where('start_date', '>=', now()->toDateString())
-                        ->with('category')
+                        ->with('format')
                         ->inRandomOrder()
                         ->take(10)
                         ->get();

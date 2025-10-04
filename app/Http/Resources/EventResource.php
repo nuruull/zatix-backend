@@ -19,13 +19,13 @@ class EventResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'category' => $this->category->name,
+            'format' => $this->format?->name,
+            'topics' => $this->whenLoaded('topics', function () {
+                return $this->topics->pluck('name');
+            }),
             'description' => $this->description,
-
-            // PERBAIKAN: Tambahkan pengecekan NULL sebelum memanggil format()
-            'start_datetime' => $this->start_date ? $this->start_date->format('Y-m-d') . 'T' . $this->start_time : null,
+            'start_datetime' => $this->start_date ? $this->start_date->format('Y-m-d') . 'T' . $this->start_time?->format('H:i') : null,
             'end_datetime' => $this->end_date ? $this->end_date->format('Y-m-d') . 'T' . $this->end_time : null,
-
             'location' => $this->location,
             'max_tickets_per_transaction' => $this->max_tickets_per_transaction,
             'status' => $this->status,

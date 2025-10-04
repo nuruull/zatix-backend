@@ -77,4 +77,9 @@ class EventOrganizer extends Model
     {
         return $this->belongsToMany(User::class, 'event_organizer_users', 'eo_id', 'user_id');
     }
+
+    public function tickets()
+    {
+        return $this->hasManyThrough(Ticket::class, Event::class, 'eo_id', 'event_id');
+    }
 }

@@ -15,7 +15,7 @@ class Event extends Model
 
     protected $fillable = [
         'eo_id',
-        'category_id',
+        'format_id',
         'tnc_id',
         'name',
         'poster',
@@ -112,8 +112,13 @@ class Event extends Model
         return $this->belongsToMany(User::class, 'bookmarked_events')->withTimestamps();
     }
 
-    public function category()
+    public function format()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(Format::class, 'format_id');
+    }
+
+    public function topics()
+    {
+        return $this->belongsToMany(Topic::class, 'event_topic');
     }
 }
