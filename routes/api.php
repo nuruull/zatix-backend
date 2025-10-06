@@ -85,7 +85,10 @@ Route::get('event/formats', [FormatController::class, 'index'])->name('formats.i
 
 Route::get('event/topics', [TopicEventController::class, 'index'])->name('topics.index');
 
-Route::get('/organizers/public/top', [EventOrganizerPublicController::class, 'getTopOrganizers']);
+Route::prefix('organizers/public')->name('organizers.public')->group(function () {
+    Route::get('/top', [EventOrganizerPublicController::class, 'getTopOrganizers'])->name('top');
+    Route::get('/{organizer}/events', [EventOrganizerPublicController::class, 'showEventsByOrganizer'])->name('events.byOrganizer');
+});
 
 Route::prefix('carousels')
     ->name('carousels.')
