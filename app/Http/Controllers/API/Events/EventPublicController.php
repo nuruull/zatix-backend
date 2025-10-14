@@ -70,7 +70,11 @@ class EventPublicController extends BaseController
 
         $events = $query->latest()->paginate($request->input('per_page', 15));
 
-        return EventResource::collection($events);
+        $message = $events->total() > 0
+            ? 'Events retrieved successfully.'
+            : 'No events were found matching your search criteria.';
+
+        return $this->sendResponse(EventResource::collection($events), $message);
     }
 
     public function show(Event $event)
@@ -167,6 +171,10 @@ class EventPublicController extends BaseController
                 ->latest()
                 ->take(10)
                 ->get();
+
+            if ($events->isEmpty()) {
+                return $this->sendError('No learning events were found.', [], 404);
+            }
 
             return $this->sendResponse(EventResource::collection($events), 'Learning events retrieved successfully.');
         } catch (Throwable $e) {
