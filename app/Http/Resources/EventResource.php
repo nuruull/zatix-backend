@@ -25,7 +25,7 @@ class EventResource extends JsonResource
             }),
             'description' => $this->description,
             'start_datetime' => $this->start_date ? $this->start_date->format('Y-m-d') . 'T' . $this->start_time?->format('H:i') : null,
-            'end_datetime' => $this->end_date ? $this->end_date->format('Y-m-d') . 'T' . $this->end_time : null,
+            'end_datetime' => $this->end_date ? $this->end_date->format('Y-m-d') . 'T' . $this->end_time?->format('H:i') : null,
             'location' => $this->location,
             'max_tickets_per_transaction' => $this->max_tickets_per_transaction,
             'status' => $this->status,

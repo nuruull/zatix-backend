@@ -213,9 +213,6 @@ class EventController extends BaseController
             return $this->sendError('You are not authorized to update this event.', [], 403);
         }
 
-        if ($event->status !== EventStatusEnum::DRAFT) {
-            return response()->json(['message' => 'Only draft events can be updated'], 403);
-        }
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'format_id' => 'sometimes|required|integer|exists:formats,id',
@@ -237,8 +234,8 @@ class EventController extends BaseController
             'tickets.*.price' => 'required_with:tickets|numeric|min:0',
             'tickets.*.stock' => 'required_with:tickets|integer|min:0',
             'tickets.*.limit' => 'required_with:tickets|integer|min:1',
-            'tickets.*.start_date' => 'required_with:tickets|date', // Hapus before_or_equal untuk fleksibilitas
-            'tickets.*.end_date' => 'required_with:tickets|date',   // Hapus before_or_equal untuk fleksibilitas
+            'tickets.*.start_date' => 'required_with:tickets|date',
+            'tickets.*.end_date' => 'required_with:tickets|date',
             'tickets.*.ticket_type_id' => 'required_with:tickets|exists:ticket_types,id',
         ]);
 
@@ -252,65 +249,63 @@ class EventController extends BaseController
 
                 $event->update(['is_public' => $validated['is_public']]);
                 $newStatus = $event->is_public ? 'Public' : 'Private';
-                return $this->sendResponse($event, 'Event visibility has been successfully changed to ' . $newStatus);
-            }
-
-            if ($event->status !== EventStatusEnum::DRAFT) {
-                return $this->sendError('Only draft events can be fully updated. To change visibility, please send the \'is_public\' field only.', [], 403);
-            }
-
-            $updatedEvent = DB::transaction(function () use ($validated, $event, $request) {
-                $eventData = Arr::except($validated, ['facilities', 'tickets', 'poster']);
-
-                if ($request->hasFile('poster')) {
-                    if ($event->poster)
-                        $this->deleteFile($event->poster);
-                    $eventData['poster'] = $this->storeFile($request->file('poster'), 'event_posters');
-                } elseif (array_key_exists('poster', $validated) && is_null($validated['poster'])) {
-                    if ($event->poster) {
-                        $this->deleteFile($event->poster);
-                        $eventData['poster'] = null;
-                    }
+                return $this->sendResponse(new EventResource($event->fresh()), 'Event visibility has been successfully changed to ' . $newStatus);
+            } else {
+                if ($event->status !== EventStatusEnum::DRAFT) {
+                    return response()->json(['message' => 'Only draft events can be updated'], 403);
                 }
+                $updatedEvent = DB::transaction(function () use ($validated, $event, $request) {
+                    $eventData = Arr::except($validated, ['facilities', 'tickets', 'poster']);
 
-                if (!empty($eventData)) {
-                    $event->update($eventData);
-                }
-
-                if (array_key_exists('topics', $validated)) {
-                    $event->topics()->sync($validated['topics'] ?? []);
-                }
-
-                if (array_key_exists('facilities', $validated)) {
-                    $event->facilities()->sync($validated['facilities'] ?? []);
-                }
-
-                if (array_key_exists('tickets', $validated)) {
-                    $ticketIdsToKeep = [];
-                    foreach ($validated['tickets'] ?? [] as $ticketData) {
-                        $ticketId = $ticketData['id'] ?? null;
-                        if ($ticketId) {
-                            // Update
-                            $ticket = $event->tickets()->find($ticketId);
-                            if ($ticket) {
-                                $ticket->update(Arr::except($ticketData, ['id']));
-                                $ticketIdsToKeep[] = $ticket->id;
-                            }
-                        } else {
-                            // Create
-                            $newTicket = $event->tickets()->create($ticketData);
-                            $ticketIdsToKeep[] = $newTicket->id;
+                    if ($request->hasFile('poster')) {
+                        if ($event->poster)
+                            $this->deleteFile($event->poster);
+                        $eventData['poster'] = $this->storeFile($request->file('poster'), 'event_posters');
+                    } elseif (array_key_exists('poster', $validated) && is_null($validated['poster'])) {
+                        if ($event->poster) {
+                            $this->deleteFile($event->poster);
+                            $eventData['poster'] = null;
                         }
                     }
-                    // Delete tickets yang tidak ada di request
-                    $event->tickets()->whereNotIn('id', $ticketIdsToKeep)->delete();
-                }
 
-                return $event->fresh(['facilities', 'tickets', 'format', 'topics']);
-            });
+                    if (!empty($eventData)) {
+                        $event->update($eventData);
+                    }
 
-            return $this->sendResponse(new EventResource($updatedEvent), 'Event updated successfully');
+                    if (array_key_exists('topics', $validated)) {
+                        $event->topics()->sync($validated['topics'] ?? []);
+                    }
 
+                    if (array_key_exists('facilities', $validated)) {
+                        $event->facilities()->sync($validated['facilities'] ?? []);
+                    }
+
+                    if (array_key_exists('tickets', $validated)) {
+                        $ticketIdsToKeep = [];
+                        foreach ($validated['tickets'] ?? [] as $ticketData) {
+                            $ticketId = $ticketData['id'] ?? null;
+                            if ($ticketId) {
+                                // Update
+                                $ticket = $event->tickets()->find($ticketId);
+                                if ($ticket) {
+                                    $ticket->update(Arr::except($ticketData, ['id']));
+                                    $ticketIdsToKeep[] = $ticket->id;
+                                }
+                            } else {
+                                // Create
+                                $newTicket = $event->tickets()->create($ticketData);
+                                $ticketIdsToKeep[] = $newTicket->id;
+                            }
+                        }
+                        // Delete tickets yang tidak ada di request
+                        $event->tickets()->whereNotIn('id', $ticketIdsToKeep)->delete();
+                    }
+
+                    return $event->fresh(['facilities', 'tickets', 'format', 'topics']);
+                });
+
+                return $this->sendResponse(new EventResource($updatedEvent), 'Event updated successfully');
+            }
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'message' => 'Event not found'
